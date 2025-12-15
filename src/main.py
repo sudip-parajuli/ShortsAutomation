@@ -239,6 +239,13 @@ def main():
             
             if video_id:
                 logger.info(f"Successfully uploaded! URL: https://youtube.com/shorts/{video_id}")
+                # Cleanup produced video to save space
+                if not args.keep_temps and os.path.exists(final_video_path):
+                    try:
+                        os.remove(final_video_path)
+                        logger.info(f"Deleted uploaded video file: {final_video_path}")
+                    except Exception as e:
+                        logger.warning(f"Failed to delete video file: {e}")
             else:
                 logger.error("Upload failed.")
         else:
