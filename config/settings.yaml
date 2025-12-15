@@ -1,0 +1,52 @@
+# Project Settings
+
+paths:
+  assets: "assets"
+  temp: "assets/temp"
+  output: "assets/output"
+  music: "assets/music"
+  fonts: "assets/fonts/Roboto-Bold.ttf" # Example font
+
+# API Configurations
+ollama:
+  base_url: "http://localhost:11434"
+  model: "phi3"  # Using phi3 instead of mistral due to RAM constraints (2.3GB vs 4.5GB)
+  # Prompt constraints embedded in code, can be overridden here if needed
+
+# Image Generation (GPU-free cloud options)
+image_generation:
+  # Primary: Pollinations.ai (FREE, no API key needed, unlimited)
+  use_pollinations: true
+  
+  # Secondary: Hugging Face Inference API (optional, free tier: 1000 requests/month)
+  # Get free API key from: https://huggingface.co/settings/tokens
+  huggingface_api_key: ""  # Set via environment variable if needed
+  
+  # Tertiary: Local Stable Diffusion (requires NVIDIA GPU)
+  stable_diffusion_url: "http://127.0.0.1:7860"
+  
+  # Image specifications
+  width: 768
+  height: 1024
+
+video:
+  duration: 60 # Max duration for Shorts
+  resolution: [1080, 1920]
+  fps: 30
+  
+audio:
+  music_dir: "assets/music"
+  voices_male: ["en-US-ChristopherNeural", "en-US-GuyNeural", "en-US-EricNeural"]
+  voices_female: ["en-US-AriaNeural", "en-US-JennyNeural", "en-US-MichelleNeural"]
+
+upload:
+  description_template: |
+    Daily Inspiration! #shorts #motivation #quotes
+    
+    "{quote}"
+    
+    Subscribe for daily quotes!
+  privacy_status: "public" # public, private, unlisted
+
+# Schedule is now managed by Windows Task Scheduler
+# The script will be run with a flag or entry point that does ONE video generation and upload then exits.
