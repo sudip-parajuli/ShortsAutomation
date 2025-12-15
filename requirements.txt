@@ -8,3 +8,4 @@ schedule
 Pillow
 numpy
 google-generativeai
+mutagen
