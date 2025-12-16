@@ -161,9 +161,28 @@ def create_video(image_path, audio_path, quote_text, music_dir="assets/music", o
         # Use \n for FFmpeg drawtext line breaks (NOT \\n)
         final_text = "\n".join(lines)
         
-        font_path = "C:/Windows/Fonts/arial.ttf" # Default windows font
-        if not os.path.exists(font_path):
-             font_path = "font.ttf" # Fallback if local
+        # Font Selection Strategy (Cross-Platform)
+        font_path = None
+        possible_fonts = [
+            "assets/fonts/Roboto-Bold.ttf", # Bundled font (if present)
+            "font.ttf", # Root fallback
+            "C:/Windows/Fonts/arial.ttf",   # Windows Default
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", # Linux Default (Ubuntu/Debian)
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf", # Linux Alternative
+            "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf" # Linux Alternative 2
+        ]
+        
+        for f in possible_fonts:
+            if os.path.exists(f):
+                font_path = f
+                break
+                
+        if not font_path:
+             logger.warning("No suitable font found. FFmpeg might fail if it can't find default font.")
+             # On Linux, sometimes "Sans" works as a generic alias if fontconfig is set up
+             # But best to rely on explicit path.
+             # We will try a generic name and hope ffmpeg finds it in system path
+             font_path = "Sans"
 
         video = video.drawtext(
             text=final_text,
