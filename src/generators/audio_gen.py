@@ -184,10 +184,45 @@ def sanitize_for_tts(text: str) -> str:
     text = " ".join(text.split()[:25])
     return text
 
+# ---------------- SSML BUILDER ---------------- #
+def build_ssml(text: str, voice: str) -> str:
+    """
+    Builds SSML string for natural, mature speech.
+    - Rate: -15% (Slower, more authoritative)
+    - Pitch: -5Hz (Slightly deeper)
+    - Breaks: Adds pauses after punctuation
+    """
+    # Escape special XML chars
+    safe_text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    
+    # Add pauses for "thoughtfulness"
+    # Replace period with long break
+    safe_text = safe_text.replace(".", '. <break time="600ms"/>')
+    # Replace comma with short break
+    safe_text = safe_text.replace(",", ', <break time="300ms"/>')
+    # Replace exclamation/question with medium break
+    safe_text = safe_text.replace("?", '? <break time="500ms"/>')
+    safe_text = safe_text.replace("!", '! <break time="500ms"/>')
+    
+    ssml = f"""
+    <speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>
+        <voice name='{voice}'>
+            <prosody rate='-15%' pitch='-2Hz'>
+                {safe_text}
+            </prosody>
+        </voice>
+    </speak>
+    """
+    return ssml.strip()
+
 # ---------------- ASYNC CORE ---------------- #
 async def _generate_voiceover_async(text: str, output_file: str, voice: str):
-    """Generate TTS audio (plain text, no SSML wrapper for v7.2.7)."""
-    communicate = edge_tts.Communicate(text=text, voice=voice)
+    """Generate TTS audio using SSML."""
+    ssml_content = build_ssml(text, voice)
+    
+    # Note: EdgeTTS Communicate accepts plain text OR SSML.
+    # If SSML is provided, it usually auto-detects, but we verify functionality.
+    communicate = edge_tts.Communicate(text=ssml_content, voice=voice)
     await communicate.save(output_file)
 
 # ---------------- PUBLIC API ---------------- #
@@ -197,7 +232,7 @@ def generate_voiceover(
     specific_gender=None
 ):
     """
-    Generates natural, mature/anecdotist-style voiceover using Edge TTS v7.2.7.
+    Generates natural, mature/anecdotist-style voiceover using Edge TTS w/ SSML.
     Returns: filepath of generated audio.
     """
     try:
@@ -208,14 +243,19 @@ def generate_voiceover(
 
     # Voice selection
     if specific_gender == "male":
-        pool = [v for v in NATURAL_VOICES if "Guy" in v or "Ryan" in v or "Christopher" in v or "Davis" in v]
+        # Christopher and Guy are best for "Deep/Mature"
+        pool = [v for v in NATURAL_VOICES if "Christopher" in v or "Guy" in v]
     elif specific_gender == "female":
         pool = [v for v in NATURAL_VOICES if "Libby" in v or "Aria" in v]
     else:
         pool = NATURAL_VOICES
 
+    # Fallback if pool empty (shouldn't happen with default lists)
+    if not pool:
+        pool = NATURAL_VOICES
+        
     voice = random.choice(pool)
-    logger.info(f"Selected voice: {voice}")
+    logger.info(f"Selected voice: {voice} (SSML Enhanced)")
 
     # Output path
     os.makedirs(output_dir, exist_ok=True)

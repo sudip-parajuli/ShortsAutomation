@@ -171,22 +171,38 @@ def main():
             return
 
 
-        # 3. Generate Background Image
-        # Use generic abstract prompts WITHOUT topic name to avoid text in images
-        # The topic-specific context is already in the quote itself
-        abstract_prompts = [
-            "abstract gradient background, soft colors, inspirational atmosphere",
-            "minimalist background, smooth gradients, calming colors",
-            "cinematic lighting, abstract shapes, inspirational mood",
-            "soft bokeh background, dreamy atmosphere, elegant composition",
-            "abstract waves, flowing colors, peaceful ambiance"
-        ]
-        image_prompt = random.choice(abstract_prompts)
-        image_path = image_gen.generate_background(image_prompt, output_dir=config['paths']['temp'], config=config)
-        if not image_path:
-            logger.error("Failed to generate image. Aborting.")
-            return
-        temp_files.append(image_path)
+        # 3. Generate Background (Video preferred, Image fallback)
+        background_video = None
+        image_path = None
+        
+        # Try Video First
+        try:
+            # Search query based on topic + abstract keywords
+            video_query = f"{topic} nature abstract"
+            background_video = video_gen.get_video_background(video_query, output_dir=config['paths']['temp'])
+        except Exception as e:
+            logger.warning(f"Video generation failed: {e}")
+            
+        if background_video:
+            temp_files.append(background_video)
+            logger.info(f"Using video background: {background_video}")
+        else:
+            # Fallback to Image
+            logger.info("Fallback to Image Generation...")
+            # Use generic abstract prompts WITHOUT topic name to avoid text in images
+            abstract_prompts = [
+                "abstract gradient background, soft colors, inspirational atmosphere",
+                "minimalist background, smooth gradients, calming colors",
+                "cinematic lighting, abstract shapes, inspirational mood",
+                "soft bokeh background, dreamy atmosphere, elegant composition",
+                "abstract waves, flowing colors, peaceful ambiance"
+            ]
+            image_prompt = random.choice(abstract_prompts)
+            image_path = image_gen.generate_background(image_prompt, output_dir=config['paths']['temp'], config=config)
+            if not image_path:
+                logger.error("Failed to generate image. Aborting.")
+                return
+            temp_files.append(image_path)
 
         # 4. Generate Voiceover (NO subtitles)
         audio_path = audio_gen.generate_voiceover(
@@ -213,7 +229,8 @@ def main():
             quote_text=quote,
             music_dir=music_dir,
             output_file=output_file,
-            subtitle_path=subtitle_path
+            subtitle_path=subtitle_path,
+            background_video_path=background_video
         )
         
         if not final_video_path:

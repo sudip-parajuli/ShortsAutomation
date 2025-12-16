@@ -15,7 +15,7 @@ def get_audio_duration(file_path):
         probe = ffmpeg.probe(file_path)
         return float(probe['format']['duration'])
 
-def create_video(image_path, audio_path, quote_text, music_dir="assets/music", output_file="assets/output/final_video.mp4", subtitle_path=None):
+def create_video(image_path=None, audio_path=None, quote_text="", music_dir="assets/music", output_file="assets/output/final_video.mp4", subtitle_path=None, background_video_path=None):
     """
     Composes the video using FFmpeg.
     """
@@ -31,40 +31,42 @@ def create_video(image_path, audio_path, quote_text, music_dir="assets/music", o
         video_duration = min(base_duration, 40.0)
         
         # 2. Prepare Inputs
-        input_image = ffmpeg.input(image_path)
         input_voice = ffmpeg.input(audio_path)
         
-        # 3. Background Music Selection
-        music_files = [f for f in os.listdir(music_dir) if f.endswith('.mp3') or f.endswith('.ogg')] if os.path.isdir(music_dir) else []
-        if music_files:
-            music_path = os.path.join(music_dir, random.choice(music_files))
-            input_music = ffmpeg.input(music_path).filter('volume', 0.1) # Ducking background
-            # Loop music if shorter than video
-            input_music = ffmpeg.filter(input_music, 'aloop', loop=-1, size=2e+09) 
+        # Determine background input
+        if image_path and os.path.exists(image_path):
+             # ORIGINAL IMAGE LOGIC (Fallback)
+            input_visual = ffmpeg.input(image_path)
+            video = (
+                input_visual
+                .filter('scale', -1, 1920)
+                .filter('crop', 1080, 1920)
+                .filter('zoompan', z='min(zoom+0.0005,1.1)', d=int(video_duration*30), x='iw/2-(iw/zoom/2)', y='ih/2-(ih/zoom/2)', s='1080x1920')
+            )
+        elif background_video_path and os.path.exists(background_video_path):
+             # NEW VIDEO LOGIC
+             logger.info(f"Using video background: {background_video_path}")
+             input_visual = ffmpeg.input(background_video_path)
+             # Loop video to ensure it covers full duration
+             # 1. Scale to cover 1080x1920
+             # 2. Crop to 1080x1920
+             # 3. Trim to exact duration (looping handled by stream_loop or aloop? stream_loop input option is best)
+             
+             # Better approach for looping video input:
+             # Re-define input with stream_loop
+             input_visual = ffmpeg.input(background_video_path, stream_loop=-1)
+             
+             video = (
+                 input_visual
+                 .filter('scale', 'max(1080,iw)', 'max(1920,ih)') # Scale up ensuring min dimensions
+                 .filter('scale', -1, 1920) # Force height to 1920, width auto
+                 .filter('crop', 1080, 1920) # Center crop
+                 .filter('trim', duration=video_duration) # Cut to length
+                 # No zoompan for video usually, it's already moving
+             )
         else:
-            logger.warning("No music found in assets/music. Proceeding without background music.")
-            input_music = None
-
-        # 4. Video Processing (Ken Burns + Text)
-        # Resize to 1080x1920 (fill) then Crop
-        # SD generation is 768x1024 (Portrait). We need to scale to cover 1080x1920.
-        # Aspect Ratio Target: 9/16 = 0.5625
-        # Source Aspect: 768/1024 = 0.75
-        # Source is wider than target. Scale height to 1920, width will be > 1080.
-        
-        # Zoompan filter for Ken Burns
-        # zoompan=z='min(zoom+0.0015,1.5)':d=750:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920
-        # We start with static image, apply zoompan.
-        
-        video = (
-            input_image
-            .filter('scale', 1080, -1) # Scale width to 1080, keep aspect? No, 768 is too small. 
-            # Better strategy: Scale to cover. 
-            # scale=-1:1920 will make width (768/1024)*1920 = 1440. Correct.
-            .filter('scale', -1, 1920)
-            .filter('crop', 1080, 1920) # Center crop
-            .filter('zoompan', z='min(zoom+0.0005,1.1)', d=int(video_duration*30), x='iw/2-(iw/zoom/2)', y='ih/2-(ih/zoom/2)', s='1080x1920')
-        )
+             logger.error("No visual input provided (image or video).")
+             return None
 
 
         # 5. Add Subtitles (synchronized with audio)
