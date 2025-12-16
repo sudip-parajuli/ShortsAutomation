@@ -13,6 +13,29 @@ ollama:
   model: "phi3"  # Using phi3 instead of mistral due to RAM constraints (2.3GB vs 4.5GB)
   # Prompt constraints embedded in code, can be overridden here if needed
 
+# LLM Text Generation Providers
+llm_providers:
+  # Order of preference for generation
+  provider_order: ["gemini", "groq", "huggingface", "ollama"]
+
+  gemini:
+    model: "gemini-2.5-flash" # Will fallback to others if this specific one isn't available
+    # api_key: set via env var GEMINI_API_KEY
+  
+  groq:
+    base_url: "https://api.groq.com/openai/v1"
+    model: "llama3-8b-8192" # Free, fast, good quality
+    # api_key: set via env var GROQ_API_KEY
+    
+  huggingface:
+    base_url: "https://api-inference.huggingface.co/models"
+    model: "mistralai/Mistral-7B-Instruct-v0.2"
+    # api_key: set via env var HUGGINGFACE_API_KEY
+    
+  ollama:
+    base_url: "http://localhost:11434/api/generate"
+    model: "phi3"
+
 # Image Generation (GPU-free cloud options)
 image_generation:
   # Primary: Pollinations.ai (FREE, no API key needed, unlimited)
