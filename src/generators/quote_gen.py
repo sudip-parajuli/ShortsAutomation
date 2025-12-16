@@ -14,6 +14,15 @@ def generate_quote_gemini(topic, api_key):
         
         logger.info("Starting Gemini generation (v2 - Flash/Pro/1.0)")
         
+        # DEBUG: List available models
+        try:
+            logger.info("Available Gemini Models:")
+            for m in genai.list_models():
+                if 'generateContent' in m.supported_generation_methods:
+                    logger.info(f" - {m.name}")
+        except Exception as e:
+            logger.warning(f"Could not list models: {e}")
+        
         # Try models in order of preference (newer/faster first)
         models_to_try = [
             'gemini-1.5-flash',
