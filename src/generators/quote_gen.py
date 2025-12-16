@@ -24,11 +24,13 @@ def generate_quote_gemini(topic, api_key):
             logger.warning(f"Could not list models: {e}")
         
         # Try models in order of preference (newer/faster first)
+        # Updated based on available models in environment (Dec 2025)
         models_to_try = [
-            'gemini-1.5-flash',
-            'gemini-1.5-pro',
-            'gemini-1.0-pro', 
-            'gemini-pro'
+            'gemini-2.5-flash',
+            'gemini-2.0-flash',
+            'gemini-flash-latest',
+            'gemini-pro-latest',
+            'gemini-1.5-flash', # Keep as fallback just in case
         ]
         
         for model_name in models_to_try:
