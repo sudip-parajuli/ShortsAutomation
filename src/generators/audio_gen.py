@@ -184,46 +184,16 @@ def sanitize_for_tts(text: str) -> str:
     text = " ".join(text.split()[:25])
     return text
 
-# ---------------- SSML BUILDER ---------------- #
-def build_ssml(text: str, voice: str) -> str:
-    """
-    Builds SSML string for natural, mature speech.
-    - Rate: -15% (Slower, more authoritative)
-    - Pitch: -5Hz (Slightly deeper)
-    - Breaks: Adds pauses after punctuation
-    """
-    # Escape special XML chars
-    safe_text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-    
-    # Add pauses for "thoughtfulness"
-    # Replace period with long break
-    safe_text = safe_text.replace(".", '. <break time="600ms"/>')
-    # Replace comma with short break
-    safe_text = safe_text.replace(",", ', <break time="300ms"/>')
-    # Replace exclamation/question with medium break
-    safe_text = safe_text.replace("?", '? <break time="500ms"/>')
-    safe_text = safe_text.replace("!", '! <break time="500ms"/>')
-    
-    # Remove "!" from closing tags so we don't double up breaks if logic was applied differently
-    # But clean approach:
-    # 1. Compact SSML string (Single line to avoid detection issues)
-    ssml = (
-        f"<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>"
-        f"<voice name='{voice}'>"
-        f"<prosody rate='-15%' pitch='-2Hz'>"
-        f"{safe_text}"
-        f"</prosody></voice></speak>"
-    )
-    return ssml
-
 # ---------------- ASYNC CORE ---------------- #
 async def _generate_voiceover_async(text: str, output_file: str, voice: str):
-    """Generate TTS audio using SSML."""
-    ssml_content = build_ssml(text, voice)
-    
-    # Passing SSML as text. 
-    # IMPORTANT: We pass voice to Communicate checking logic, but the SSML already defines it.
-    communicate = edge_tts.Communicate(text=ssml_content, voice=voice)
+    """Generate TTS audio using direct rate/pitch parameters (No SSML string)."""
+    # Use direct parameters to avoid SSML detection issues
+    communicate = edge_tts.Communicate(
+        text=text, 
+        voice=voice,
+        rate="-15%",
+        pitch="-2Hz"
+    )
     await communicate.save(output_file)
 
 # ---------------- PUBLIC API ---------------- #
