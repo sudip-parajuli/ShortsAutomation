@@ -11,19 +11,30 @@ def generate_quote_gemini(topic, api_key):
     """Generate quote using Google Gemini API."""
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-pro')
         
-        prompt = (
-            f"Generate a concise, inspiring quote about {topic}. "
-            "Rules: 1) Max 25 words. 2) No author names. "
-            "3) No quotation marks. 4) No extra explanation. "
-            "5) Return only the quote text."
-        )
+        # Try models in order of preference (newer/faster first)
+        models_to_try = ['gemini-1.5-flash', 'gemini-pro']
         
-        response = model.generate_content(prompt)
-        text = response.text.strip()
-        logger.info(f"Gemini raw response: {text}")
-        return text
+        for model_name in models_to_try:
+            try:
+                model = genai.GenerativeModel(model_name)
+                
+                prompt = (
+                    f"Generate a concise, inspiring quote about {topic}. "
+                    "Rules: 1) Max 25 words. 2) No author names. "
+                    "3) No quotation marks. 4) No extra explanation. "
+                    "5) Return only the quote text."
+                )
+                
+                response = model.generate_content(prompt)
+                text = response.text.strip()
+                logger.info(f"Gemini ({model_name}) response: {text}")
+                return text
+            except Exception as e:
+                logger.warning(f"Gemini model {model_name} failed: {e}")
+                continue
+                
+        return None
     except Exception as e:
         logger.error(f"Gemini generation failed: {e}")
         return None
