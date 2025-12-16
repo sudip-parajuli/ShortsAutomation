@@ -12,7 +12,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import time
 import requests
 
-from src.generators import quote_gen, image_gen, audio_gen
+from src.generators import quote_gen, image_gen, audio_gen, video_gen
 from src.video import composer
 from src.upload import youtube_api, drive_api
 from src.utils import music_loader

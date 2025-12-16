@@ -33,6 +33,17 @@ def create_video(image_path=None, audio_path=None, quote_text="", music_dir="ass
         # 2. Prepare Inputs
         input_voice = ffmpeg.input(audio_path)
         
+        # 3. Background Music Selection
+        music_files = [f for f in os.listdir(music_dir) if f.endswith('.mp3') or f.endswith('.ogg')] if os.path.isdir(music_dir) else []
+        if music_files:
+            music_path = os.path.join(music_dir, random.choice(music_files))
+            input_music = ffmpeg.input(music_path).filter('volume', 0.1) # Ducking background
+            # Loop music if shorter than video
+            input_music = ffmpeg.filter(input_music, 'aloop', loop=-1, size=2e+09) 
+        else:
+            logger.warning("No music found in assets/music. Proceeding without background music.")
+            input_music = None
+        
         # Determine background input
         if image_path and os.path.exists(image_path):
              # ORIGINAL IMAGE LOGIC (Fallback)
