@@ -245,7 +245,8 @@ def create_video(image_path, audio_path, quote_text, music_dir="assets/music", o
 
     except Exception as e:
         logger.error(f"Failed to create video: {e}")
-        # Print ffmpeg error if possible
+        if hasattr(e, 'stderr') and e.stderr:
+            logger.error(f"FFmpeg stderr: {e.stderr.decode('utf-8')}")
         return None
 
 if __name__ == "__main__":
