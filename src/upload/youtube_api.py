@@ -1,6 +1,7 @@
 import logging
 import os
 from src.utils import google_auth
+from googleapiclient.http import MediaFileUpload
 
 logger = logging.getLogger(__name__)
 
