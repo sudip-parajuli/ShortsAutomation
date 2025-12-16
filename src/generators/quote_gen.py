@@ -109,25 +109,48 @@ def generate_quote(topic="inspiration", api_url="http://localhost:11434/api/gene
         return None
 
     # ---------------- CLEANING PIPELINE ---------------- #
-    # 1. Remove everything after newline
-    raw_text = raw_text.split("\n")[0].strip()
-
-    # 2. Remove common preambles
+    # 0. Strip leading/trailing whitespace
+    raw_text = raw_text.strip()
+    
+    # 1. Remove "Sure", "Certainly", "Here is" conversational filler
+    # Regex explains:
+    # ^(sure|certainly|okay|ok|here is|here's|this quote|consider this).*?[:\-]
+    # Matches start of string, common filler words, optional content, until a colon or hyphen
+    
+    # Remove "Sure, ..." or "Certainly!" patterns at start
+    raw_text = re.sub(r"^(sure|certainly|okay|ok|actually|of course)[!.,]?\s*", "", raw_text, flags=re.IGNORECASE)
+    
+    # Remove "Here is a quote..." patterns up to a colon
+    if ":" in raw_text:
+        raw_text = raw_text.split(":", 1)[1].strip()
+    
+    # 2. Remove common preambles if they remain (e.g. "Think about this")
     preambles = ["here is", "here's", "this quote", "consider this", "remember", "think about", "reflect on"]
     lowered = raw_text.lower()
     for p in preambles:
         if lowered.startswith(p):
-            raw_text = re.split(r"[:\-]", raw_text, 1)[-1].strip()
+            raw_text = re.sub(f"^{p}.*?[:\\-]", "", raw_text, flags=re.IGNORECASE).strip()
+            
+    # 2b. Remove "Quote:" label
+    raw_text = re.sub(r"^quote:\s*", "", raw_text, flags=re.IGNORECASE)
 
     # 3. Remove quotation marks
-    cleaned = raw_text.replace('"', '')
-
+    cleaned = raw_text.replace('"', '').replace("'", "")
+    
     # 4. Remove author attributions
     cleaned = re.sub(r"\s*[-—]\s*[A-Z].*$", "", cleaned)
     cleaned = re.sub(r"\s+by\s+[A-Z].*$", "", cleaned, flags=re.IGNORECASE)
 
     # 5. Force single sentence
-    cleaned = re.split(r"[.!?]", cleaned)[0]
+    # Split by . ! ? but keep the punctuation? No, remove it for TTS usually, or keep first.
+    # If we split by [.!?], we lose the punctuation.
+    # Let's simple take the first sentence.
+    match = re.match(r"(.*?[.!?])", cleaned)
+    if match:
+        cleaned = match.group(1)
+    else:
+        # No punctuation found, just take it all (it was likely short)
+        pass
 
     # 6. Hard word limit
     words = cleaned.split()
