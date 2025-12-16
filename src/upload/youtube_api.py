@@ -40,7 +40,18 @@ def get_authenticated_service():
         with open("token.pickle", "wb") as token:
             pickle.dump(creds, token)
 
-    return build("youtube", "v3", credentials=creds)
+    service = build("youtube", "v3", credentials=creds)
+    
+    # Verify and log connected channel
+    try:
+        channels_response = service.channels().list(mine=True, part="snippet").execute()
+        if 'items' in channels_response:
+             channel_name = channels_response['items'][0]['snippet']['title']
+             logger.info(f"✅ Authenticated as YouTube Channel: '{channel_name}'")
+    except Exception as e:
+        logger.warning(f"Could not verify channel name: {e}")
+
+    return service
 
 def upload_video(file_path, title, description, tags, privacy_status="private"):
     try:
