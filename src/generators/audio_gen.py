@@ -145,7 +145,6 @@ NATURAL_VOICES = [
     "en-US-GuyNeural",         # Deep, mature male
     "en-GB-RyanNeural",        # British male, authoritative
     "en-US-ChristopherNeural", # Warm, calm male
-    "en-US-DavisNeural",       # Calm, professional male
     "en-GB-LibbyNeural",       # British female, elegant
     "en-US-AriaNeural",        # Warm female narrator
 ]
