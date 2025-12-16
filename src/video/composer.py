@@ -20,6 +20,9 @@ def create_video(image_path, audio_path, quote_text, music_dir="assets/music", o
     Composes the video using FFmpeg.
     """
     try:
+        # Ensure output directory exists (Critical for GitHub runners)
+        os.makedirs(os.path.dirname(output_file), exist_ok=True)
+
         # 1. Determine constraints
         voice_duration = get_audio_duration(audio_path)
         # Min duration 8 seconds, Max 40 seconds (clamp)
