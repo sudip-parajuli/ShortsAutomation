@@ -75,39 +75,43 @@ def main():
     
     services_ok = True
     
-    # Check Ollama
-    # Check LLM Service (Ollama or Gemini)
-    ollama_ok = check_service(config['ollama']['base_url'], "Ollama", retries=2, delay=2)
-    gemini_key_present = "GEMINI_API_KEY" in os.environ
+    # Check LLM Service Availability
+    # We now support Gemini, Groq, HuggingFace, and Ollama.
+    # At least one should be available.
+    
+    ollama_ok = check_service(config['ollama']['base_url'], "Ollama", retries=1, delay=1)
+    
+    env_keys = ["GEMINI_API_KEY", "GROQ_API_KEY", "HUGGINGFACE_API_KEY"]
+    cloud_llm_available = any(key in os.environ for key in env_keys)
+    
+    if not ollama_ok and not cloud_llm_available:
+        logger.warning("Ollama not reachable and no Cloud LLM keys found. Attempting to start Ollama...")
+        # Try to find executable in common paths
+        ollama_paths = [
+            "ollama", # PATH
+            os.path.expanduser("~/AppData/Local/Programs/Ollama/ollama.exe"),
+            "C:/Program Files/Ollama/ollama.exe"
+        ]
+        
+        started = False
+        for cmd in ollama_paths:
+            try:
+                subprocess.Popen([cmd, "serve"], shell=True)
+                logger.info(f"Attempted start using: {cmd}")
+                time.sleep(5)
+                if check_service(config['ollama']['base_url'], "Ollama", retries=3, delay=2):
+                    started = True
+                    break
+            except Exception:
+                continue
+        
+        if not started:
+             logger.error("CRITICAL: No LLM service available (Ollama not running, no API keys found).")
+             logger.error(f"Please install Ollama OR set one of {env_keys}.")
+             services_ok = False
+    else:
+        logger.info("LLM Service check passed (Ollama or Cloud API available).")
 
-    if not ollama_ok:
-        if gemini_key_present:
-            logger.info("Ollama not reachable, but GEMINI_API_KEY found. Using Gemini Cloud LLM.")
-        else:
-            logger.warning("Ollama not reachable and GEMINI_API_KEY not set. Attempting to start Ollama...")
-            # Try to find executable in common paths
-            ollama_paths = [
-                "ollama", # PATH
-                os.path.expanduser("~/AppData/Local/Programs/Ollama/ollama.exe"),
-                "C:/Program Files/Ollama/ollama.exe"
-            ]
-            
-            started = False
-            for cmd in ollama_paths:
-                try:
-                    subprocess.Popen([cmd, "serve"], shell=True)
-                    logger.info(f"Attempted start using: {cmd}")
-                    time.sleep(5)
-                    if check_service(config['ollama']['base_url'], "Ollama", retries=3, delay=2):
-                        started = True
-                        break
-                except Exception:
-                    continue
-            
-            if not started:
-                 logger.error("CRITICAL: Ollama is not running and GEMINI_API_KEY is missing.")
-                 logger.error("Please install Ollama OR set GEMINI_API_KEY environment variable.")
-                 services_ok = False
     
     # Check SD (Optional - we have cloud alternatives now)
     sd_url = config.get('image_generation', {}).get('stable_diffusion_url', 'http://127.0.0.1:7860')
@@ -163,11 +167,13 @@ def main():
 
     try:
         # 2. Generate Quote
-        quote = quote_gen.generate_quote(topic=topic, model=config['ollama']['model'])
+        quote = quote_gen.generate_quote(topic=topic)
         if not quote:
             logger.error("Failed to generate quote. Aborting.")
             logger.error("Please ensure Ollama is running and the model is installed.")
-            logger.error(f"Try running: ollama pull {config['ollama']['model']}")
+        if not quote:
+            logger.error("Failed to generate quote. Aborting.")
+            logger.error("All LLM providers failed. Check API keys or Ollama status.")
             return
 
 
