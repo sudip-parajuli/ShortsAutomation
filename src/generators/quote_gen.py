@@ -12,8 +12,15 @@ def generate_quote_gemini(topic, api_key):
     try:
         genai.configure(api_key=api_key)
         
+        logger.info("Starting Gemini generation (v2 - Flash/Pro/1.0)")
+        
         # Try models in order of preference (newer/faster first)
-        models_to_try = ['gemini-1.5-flash', 'gemini-pro']
+        models_to_try = [
+            'gemini-1.5-flash',
+            'gemini-1.5-pro',
+            'gemini-1.0-pro', 
+            'gemini-pro'
+        ]
         
         for model_name in models_to_try:
             try:
