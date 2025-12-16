@@ -218,7 +218,7 @@ def main():
         
         if not final_video_path:
             logger.error("Failed to create video. Aborting.")
-            return
+            sys.exit(1)
         
         logger.info(f"Video generated at: {final_video_path}")
 
@@ -253,6 +253,7 @@ def main():
 
     except Exception as e:
         logger.error(f"Pipeline failed with exception: {e}")
+        sys.exit(1)
     finally:
         if not args.keep_temps:
             cleanup(temp_files)
