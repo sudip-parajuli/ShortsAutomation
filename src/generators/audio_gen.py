@@ -204,24 +204,25 @@ def build_ssml(text: str, voice: str) -> str:
     safe_text = safe_text.replace("?", '? <break time="500ms"/>')
     safe_text = safe_text.replace("!", '! <break time="500ms"/>')
     
-    ssml = f"""
-    <speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>
-        <voice name='{voice}'>
-            <prosody rate='-15%' pitch='-2Hz'>
-                {safe_text}
-            </prosody>
-        </voice>
-    </speak>
-    """
-    return ssml.strip()
+    # Remove "!" from closing tags so we don't double up breaks if logic was applied differently
+    # But clean approach:
+    # 1. Compact SSML string (Single line to avoid detection issues)
+    ssml = (
+        f"<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>"
+        f"<voice name='{voice}'>"
+        f"<prosody rate='-15%' pitch='-2Hz'>"
+        f"{safe_text}"
+        f"</prosody></voice></speak>"
+    )
+    return ssml
 
 # ---------------- ASYNC CORE ---------------- #
 async def _generate_voiceover_async(text: str, output_file: str, voice: str):
     """Generate TTS audio using SSML."""
     ssml_content = build_ssml(text, voice)
     
-    # Note: EdgeTTS Communicate accepts plain text OR SSML.
-    # If SSML is provided, it usually auto-detects, but we verify functionality.
+    # Passing SSML as text. 
+    # IMPORTANT: We pass voice to Communicate checking logic, but the SSML already defines it.
     communicate = edge_tts.Communicate(text=ssml_content, voice=voice)
     await communicate.save(output_file)
 
