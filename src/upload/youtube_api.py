@@ -1,47 +1,14 @@
 import logging
 import os
-import pickle
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
+from src.utils import google_auth
 
 logger = logging.getLogger(__name__)
 
-SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
-
 def get_authenticated_service():
-    creds = None
-    # The file token.pickle stores the user's access and refresh tokens
-    if os.path.exists("token.pickle"):
-        with open("token.pickle", "rb") as token:
-            creds = pickle.load(token)
-            
-    # If there are no (valid) credentials available, let the user log in.
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            try:
-                creds.refresh(Request())
-            except Exception as e:
-                logger.error(f"Error refreshing token: {e}")
-                creds = None
+    service = google_auth.get_service("youtube", "v3")
+    if not service:
+        return None
 
-        if not creds:
-            if not os.path.exists("client_secret.json"):
-                logger.error("client_secret.json not found.")
-                return None
-                
-            flow = InstalledAppFlow.from_client_secrets_file(
-                "client_secret.json", SCOPES
-            )
-            creds = flow.run_local_server(port=0)
-            
-        # Save the credentials for the next run
-        with open("token.pickle", "wb") as token:
-            pickle.dump(creds, token)
-
-    service = build("youtube", "v3", credentials=creds)
-    
     # Verify and log connected channel
     try:
         channels_response = service.channels().list(mine=True, part="snippet").execute()

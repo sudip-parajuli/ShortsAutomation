@@ -14,7 +14,7 @@ import requests
 
 from src.generators import quote_gen, image_gen, audio_gen
 from src.video import composer
-from src.upload import youtube_api
+from src.upload import youtube_api, drive_api
 from src.utils import music_loader
 
 # Setup Logging
@@ -239,17 +239,25 @@ def main():
             
             if video_id:
                 logger.info(f"Successfully uploaded! URL: https://youtube.com/shorts/{video_id}")
-                # Cleanup produced video to save space
-                if not args.keep_temps and os.path.exists(final_video_path):
-                    try:
-                        os.remove(final_video_path)
-                        logger.info(f"Deleted uploaded video file: {final_video_path}")
-                    except Exception as e:
-                        logger.warning(f"Failed to delete video file: {e}")
             else:
-                logger.error("Upload failed.")
+                logger.error("YouTube Upload failed.")
+            # 7. Upload to Google Drive (Backup/Sharing)
+            logger.info("Starting Google Drive upload...")
+            drive_link = drive_api.upload_file(final_video_path)
+            if drive_link:
+                logger.info(f"Backup uploaded to Drive: {drive_link}")
+            else:
+                logger.warning("Google Drive upload failed.")
+
+            # Final Cleanup of Video File
+            if not args.keep_temps and os.path.exists(final_video_path):
+                try:
+                    os.remove(final_video_path)
+                    logger.info(f"Deleted uploaded video file: {final_video_path}")
+                except Exception as e:
+                    logger.warning(f"Failed to delete video file: {e}")
         else:
-            logger.info("Dry run enabled. Skipping upload.")
+            logger.info("Dry run enabled. Skipping uploads.")
 
     except Exception as e:
         logger.error(f"Pipeline failed with exception: {e}")
