@@ -69,8 +69,8 @@ def create_video(image_path=None, audio_path=None, quote_text="", music_dir="ass
              
              video = (
                  input_visual
-                 .filter('scale', 'max(1080,iw)', 'max(1920,ih)') # Scale up ensuring min dimensions
-                 .filter('scale', -1, 1920) # Force height to 1920, width auto
+                 # Scale to cover 1080x1920 while preserving aspect ratio
+                 .filter('scale', 1080, 1920, force_original_aspect_ratio='increase')
                  .filter('crop', 1080, 1920) # Center crop
                  .filter('trim', duration=video_duration) # Cut to length
                  # No zoompan for video usually, it's already moving

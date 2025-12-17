@@ -5,6 +5,12 @@ import yaml
 import random
 import logging
 import shutil
+import warnings
+
+# Suppress warnings from google.api_core and google.generativeai about future deprecations
+warnings.filterwarnings("ignore", category=FutureWarning, module="google.api_core")
+warnings.filterwarnings("ignore", category=FutureWarning, module="google.generativeai")
+warnings.filterwarnings("ignore", category=FutureWarning, module="src.generators.llm_providers")
 
 # Add src to path to allow imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
