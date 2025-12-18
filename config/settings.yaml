@@ -15,8 +15,8 @@ ollama:
 
 # LLM Text Generation Providers
 llm_providers:
-  # Order of preference for generation
-  provider_order: ["gemini", "groq", "huggingface", "ollama"]
+  # Order of preference for generation (Cloud-first for GitHub Actions)
+  provider_order: ["gemini", "groq", "huggingface"]
 
   gemini:
     model: "gemini-2.5-flash" # Will fallback to others if this specific one isn't available

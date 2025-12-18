@@ -81,49 +81,8 @@ def main():
     
     services_ok = True
     
-    # Check LLM Service Availability
-    # We now support Gemini, Groq, HuggingFace, and Ollama.
-    # At least one should be available.
-    
-    ollama_ok = check_service(config['ollama']['base_url'], "Ollama", retries=1, delay=1)
-    
-    env_keys = ["GEMINI_API_KEY", "GROQ_API_KEY", "HUGGINGFACE_API_KEY"]
-    cloud_llm_available = any(key in os.environ for key in env_keys)
-    
-    if not ollama_ok and not cloud_llm_available:
-        logger.warning("Ollama not reachable and no Cloud LLM keys found. Attempting to start Ollama...")
-        # Try to find executable in common paths
-        ollama_paths = [
-            "ollama", # PATH
-            os.path.expanduser("~/AppData/Local/Programs/Ollama/ollama.exe"),
-            "C:/Program Files/Ollama/ollama.exe"
-        ]
-        
-        started = False
-        for cmd in ollama_paths:
-            try:
-                subprocess.Popen([cmd, "serve"], shell=True)
-                logger.info(f"Attempted start using: {cmd}")
-                time.sleep(5)
-                if check_service(config['ollama']['base_url'], "Ollama", retries=3, delay=2):
-                    started = True
-                    break
-            except Exception:
-                continue
-        
-        if not started:
-             logger.error("CRITICAL: No LLM service available (Ollama not running, no API keys found).")
-             logger.error(f"Please install Ollama OR set one of {env_keys}.")
-             services_ok = False
-    else:
-        logger.info("LLM Service check passed (Ollama or Cloud API available).")
-
-    
-    # Check SD (Optional - we have cloud alternatives now)
-    sd_url = config.get('image_generation', {}).get('stable_diffusion_url', 'http://127.0.0.1:7860')
-    if not check_service(sd_url, "Stable Diffusion", retries=1):
-         logger.info("Local Stable Diffusion not running. Will use cloud-based image generation (Pollinations.ai).")
-         # services_ok = False # Do NOT fail, we have cloud alternatives
+    # LLM and Image services are handled by provider fallbacks.
+    logger.info("Service check: Skipping local checks for Ollama/SD.")
 
     # Check FFmpeg
     ffmpeg_cmd = "ffmpeg"
@@ -217,7 +176,7 @@ def main():
             temp_files.append(image_path)
 
         # 4. Generate Voiceover and Captions
-        audio_path, word_boundaries = audio_gen.generate_voiceover(
+        audio_path, word_boundaries, sanitized_quote = audio_gen.generate_voiceover(
             quote,
             output_dir=config['paths']['temp'],
             specific_gender="male"
@@ -233,15 +192,15 @@ def main():
         subtitle_path = None
         if word_boundaries:
             from src.utils import subtitle_utils
-            # Extract potential keywords (simple heuristic: words > 5 chars or based on topic)
-            words = quote.split()
-            keywords = [w.strip(".,!?;:\"") for w in words if len(w.strip(".,!?;:\"")) > 6]
+            # Use sanitized quote for keyword extraction to match word boundaries
+            words_to_check = sanitized_quote.split()
+            keywords = [w.strip(".,!?;:\"") for w in words_to_check if len(w.strip(".,!?;:\"")) > 6]
             
             ass_filename = audio_path.replace(".mp3", ".ass")
             subtitle_path = subtitle_utils.generate_karaoke_ass(
                 word_boundaries, 
                 ass_filename, 
-                quote,
+                sanitized_quote,
                 keywords=keywords
             )
             if subtitle_path:

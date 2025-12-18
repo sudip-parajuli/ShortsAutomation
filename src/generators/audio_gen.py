@@ -186,7 +186,7 @@ def sanitize_for_tts(text: str) -> str:
 
 # ---------------- ASYNC CORE ---------------- #
 async def _generate_voiceover_async(text: str, output_file: str, voice: str):
-    """Generate TTS audio and capture word boundaries."""
+    """Generate TTS audio and capture word boundaries (with estimation fallback)."""
     communicate = edge_tts.Communicate(
         text=text, 
         voice=voice,
@@ -195,10 +195,7 @@ async def _generate_voiceover_async(text: str, output_file: str, voice: str):
     )
     
     word_boundaries = []
-    # Use stream to catch word boundaries while saving
-    # Note: communicate.save() doesn't give us boundaries, so we use stream and manually save chunks
-    # or just use stream to get boundaries and then save normally.
-    # Actually, the stream method allows capturing types.
+    sentence_boundary = None
     
     with open(output_file, "wb") as f:
         async for chunk in communicate.stream():
@@ -207,10 +204,36 @@ async def _generate_voiceover_async(text: str, output_file: str, voice: str):
             elif chunk["type"] == "WordBoundary":
                 word_boundaries.append({
                     "text": chunk["text"],
-                    "offset": chunk["offset"],
-                    "duration": chunk["duration"]
+                    "offset": chunk["offset"] * 100, # Convert 100ns units to ns
+                    "duration": chunk["duration"] * 100
                 })
+            elif chunk["type"] == "SentenceBoundary":
+                sentence_boundary = chunk
+
+    # Fallback: Estimate word boundaries from sentence boundary if real ones missing
+    if not word_boundaries and sentence_boundary:
+        logger.info("Real WordBoundaries missing. Estimating from SentenceBoundary...")
+        words = text.split()
+        if words:
+            total_duration_ns = sentence_boundary["duration"] * 100
+            start_offset_ns = sentence_boundary["offset"] * 100
+            
+            # Simple heuristic: duration proportional to word length
+            total_chars = sum(len(w) for w in words)
+            current_offset = start_offset_ns
+            
+            for word in words:
+                # Add extra weight to words because of spaces (not perfect but better)
+                word_weight = len(word) 
+                word_duration = (word_weight / total_chars) * total_duration_ns
                 
+                word_boundaries.append({
+                    "text": word,
+                    "offset": int(current_offset),
+                    "duration": int(word_duration)
+                })
+                current_offset += word_duration
+
     return word_boundaries
 
 # ---------------- PUBLIC API ---------------- #
@@ -221,13 +244,13 @@ def generate_voiceover(
 ):
     """
     Generates natural, mature/anecdotist-style voiceover using Edge TTS.
-    Returns: (audio_filepath, word_boundaries)
+    Returns: (audio_filepath, word_boundaries, sanitized_text)
     """
     try:
-        text = sanitize_for_tts(text)
+        sanitized_text = sanitize_for_tts(text)
     except ValueError as e:
         logger.error(f"TTS sanitization failed: {e}")
-        return None, []
+        return None, [], ""
 
     # Voice selection
     if specific_gender == "male":
@@ -250,12 +273,12 @@ def generate_voiceover(
     filepath = os.path.join(output_dir, filename)
 
     try:
-        word_boundaries = asyncio.run(_generate_voiceover_async(text, filepath, voice))
+        word_boundaries = asyncio.run(_generate_voiceover_async(sanitized_text, filepath, voice))
         logger.info(f"Voiceover saved: {filepath} with {len(word_boundaries)} words.")
-        return filepath, word_boundaries
+        return filepath, word_boundaries, sanitized_text
     except Exception as e:
         logger.error(f"Voice generation failed: {e}")
-        return None, []
+        return None, [], ""
 
 # ---------------- MAIN TEST ---------------- #
 if __name__ == "__main__":
