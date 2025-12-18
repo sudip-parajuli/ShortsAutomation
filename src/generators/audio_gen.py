@@ -186,15 +186,32 @@ def sanitize_for_tts(text: str) -> str:
 
 # ---------------- ASYNC CORE ---------------- #
 async def _generate_voiceover_async(text: str, output_file: str, voice: str):
-    """Generate TTS audio using direct rate/pitch parameters (No SSML string)."""
-    # Use direct parameters to avoid SSML detection issues
+    """Generate TTS audio and capture word boundaries."""
     communicate = edge_tts.Communicate(
         text=text, 
         voice=voice,
         rate="-15%",
         pitch="-2Hz"
     )
-    await communicate.save(output_file)
+    
+    word_boundaries = []
+    # Use stream to catch word boundaries while saving
+    # Note: communicate.save() doesn't give us boundaries, so we use stream and manually save chunks
+    # or just use stream to get boundaries and then save normally.
+    # Actually, the stream method allows capturing types.
+    
+    with open(output_file, "wb") as f:
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                f.write(chunk["data"])
+            elif chunk["type"] == "WordBoundary":
+                word_boundaries.append({
+                    "text": chunk["text"],
+                    "offset": chunk["offset"],
+                    "duration": chunk["duration"]
+                })
+                
+    return word_boundaries
 
 # ---------------- PUBLIC API ---------------- #
 def generate_voiceover(
@@ -203,14 +220,14 @@ def generate_voiceover(
     specific_gender=None
 ):
     """
-    Generates natural, mature/anecdotist-style voiceover using Edge TTS w/ SSML.
-    Returns: filepath of generated audio.
+    Generates natural, mature/anecdotist-style voiceover using Edge TTS.
+    Returns: (audio_filepath, word_boundaries)
     """
     try:
         text = sanitize_for_tts(text)
     except ValueError as e:
         logger.error(f"TTS sanitization failed: {e}")
-        return None
+        return None, []
 
     # Voice selection
     if specific_gender == "male":
@@ -221,12 +238,11 @@ def generate_voiceover(
     else:
         pool = NATURAL_VOICES
 
-    # Fallback if pool empty (shouldn't happen with default lists)
     if not pool:
         pool = NATURAL_VOICES
         
     voice = random.choice(pool)
-    logger.info(f"Selected voice: {voice} (SSML Enhanced)")
+    logger.info(f"Selected voice: {voice}")
 
     # Output path
     os.makedirs(output_dir, exist_ok=True)
@@ -234,12 +250,12 @@ def generate_voiceover(
     filepath = os.path.join(output_dir, filename)
 
     try:
-        asyncio.run(_generate_voiceover_async(text, filepath, voice))
-        logger.info(f"Voiceover saved: {filepath}")
-        return filepath
+        word_boundaries = asyncio.run(_generate_voiceover_async(text, filepath, voice))
+        logger.info(f"Voiceover saved: {filepath} with {len(word_boundaries)} words.")
+        return filepath, word_boundaries
     except Exception as e:
         logger.error(f"Voice generation failed: {e}")
-        return None
+        return None, []
 
 # ---------------- MAIN TEST ---------------- #
 if __name__ == "__main__":

@@ -53,18 +53,11 @@ def create_video(image_path=None, audio_path=None, quote_text="", music_dir="ass
                 .filter('scale', -1, 1920)
                 .filter('crop', 1080, 1920)
                 .filter('zoompan', z='min(zoom+0.0005,1.1)', d=int(video_duration*30), x='iw/2-(iw/zoom/2)', y='ih/2-(ih/zoom/2)', s='1080x1920')
+                .filter('vignette', angle='0.5') # Add vignette for premium look
             )
         elif background_video_path and os.path.exists(background_video_path):
              # NEW VIDEO LOGIC
              logger.info(f"Using video background: {background_video_path}")
-             input_visual = ffmpeg.input(background_video_path)
-             # Loop video to ensure it covers full duration
-             # 1. Scale to cover 1080x1920
-             # 2. Crop to 1080x1920
-             # 3. Trim to exact duration (looping handled by stream_loop or aloop? stream_loop input option is best)
-             
-             # Better approach for looping video input:
-             # Re-define input with stream_loop
              input_visual = ffmpeg.input(background_video_path, stream_loop=-1)
              
              video = (
@@ -73,7 +66,7 @@ def create_video(image_path=None, audio_path=None, quote_text="", music_dir="ass
                  .filter('scale', 1080, 1920, force_original_aspect_ratio='increase')
                  .filter('crop', 1080, 1920) # Center crop
                  .filter('trim', duration=video_duration) # Cut to length
-                 # No zoompan for video usually, it's already moving
+                 .filter('vignette', angle='0.5') # Add vignette to video too
              )
         else:
              logger.error("No visual input provided (image or video).")
@@ -85,13 +78,18 @@ def create_video(image_path=None, audio_path=None, quote_text="", music_dir="ass
             # Use subtitles filter for word-by-word sync
             safe_subtitle_path = subtitle_path.replace('\\', '/').replace(':', '\\:')
             
-            video = video.filter(
-                'subtitles',
-                safe_subtitle_path,
-                force_style='FontName=Arial,FontSize=90,Bold=1,PrimaryColour=&HFFFFFF,OutlineColour=&H000000,Outline=3,Shadow=2,Alignment=10,MarginV=50'
-            )
+            if subtitle_path.endswith('.ass'):
+                # For ASS files, we typically want to use internal styles
+                video = video.filter('subtitles', safe_subtitle_path)
+            else:
+                # Fallback for VTT/SRT
+                video = video.filter(
+                    'subtitles',
+                    safe_subtitle_path,
+                    force_style='FontName=Arial,FontSize=90,Bold=1,PrimaryColour=&HFFFFFF,OutlineColour=&H000000,Outline=3,Shadow=2,Alignment=10,MarginV=50'
+                )
         else:
-            # Fallback to static text (existing code below)
+            # Fallback to static text (drawtext) if no subtitles provided
             pass
 
         # Draw Text (Fallback)

@@ -216,8 +216,8 @@ def main():
                 return
             temp_files.append(image_path)
 
-        # 4. Generate Voiceover (NO subtitles)
-        audio_path = audio_gen.generate_voiceover(
+        # 4. Generate Voiceover and Captions
+        audio_path, word_boundaries = audio_gen.generate_voiceover(
             quote,
             output_dir=config['paths']['temp'],
             specific_gender="male"
@@ -228,8 +228,24 @@ def main():
             return
 
         temp_files.append(audio_path)
+        
+        # 4.1 Generate Karaoke Subtitles (ASS format)
         subtitle_path = None
-
+        if word_boundaries:
+            from src.utils import subtitle_utils
+            # Extract potential keywords (simple heuristic: words > 5 chars or based on topic)
+            words = quote.split()
+            keywords = [w.strip(".,!?;:\"") for w in words if len(w.strip(".,!?;:\"")) > 6]
+            
+            ass_filename = audio_path.replace(".mp3", ".ass")
+            subtitle_path = subtitle_utils.generate_karaoke_ass(
+                word_boundaries, 
+                ass_filename, 
+                quote,
+                keywords=keywords
+            )
+            if subtitle_path:
+                temp_files.append(subtitle_path)
 
         # 5. Compose Video
         music_dir = config['paths']['music']
