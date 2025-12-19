@@ -86,7 +86,7 @@ def create_video(image_path=None, audio_path=None, quote_text="", music_dir="ass
                 video = video.filter(
                     'subtitles',
                     safe_subtitle_path,
-                    force_style='FontName=Arial,FontSize=90,Bold=1,PrimaryColour=&HFFFFFF,OutlineColour=&H000000,Outline=3,Shadow=2,Alignment=10,MarginV=50'
+                    force_style='FontName=Arial,FontSize=90,Bold=1,PrimaryColour=&HFFFFFF,OutlineColour=&H000000,Outline=3,Shadow=2,Alignment=2,MarginV=50'
                 )
         else:
             # Fallback to static text (drawtext) if no subtitles provided
