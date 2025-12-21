@@ -38,17 +38,30 @@ def generate_quote(topic="inspiration"):
         "5) Return only the quote text."
     )
     
-    raw_text, provider_used = llm_manager.generate_with_fallback(prompt)
+    max_retries = 3
+    attempt = 0
     
-    if not raw_text:
-        logger.error("All LLM providers failed to generate a quote.")
-        return None
+    while attempt < max_retries:
+        raw_text, provider_used = llm_manager.generate_with_fallback(prompt)
         
-    logger.info(f"Quote generated using provider: {provider_used}")
-    
-    cleaned = clean_quote(raw_text)
-    logger.info(f"Final processed quote: {cleaned}")
-    return cleaned
+        if not raw_text:
+            logger.error(f"All LLM providers failed to generate a quote on attempt {attempt+1}.")
+            attempt += 1
+            continue
+            
+        cleaned = clean_quote(raw_text)
+        word_count = len(cleaned.split())
+        
+        if word_count >= 5:
+            logger.info(f"Quote generated using provider: {provider_used} ({word_count} words)")
+            logger.info(f"Final processed quote: {cleaned}")
+            return cleaned
+        else:
+            logger.warning(f"Quote too short ({word_count} words). Retrying... Attempt {attempt+1}/{max_retries}")
+            attempt += 1
+
+    logger.error("Failed to generate a quality quote after multiple attempts.")
+    return None
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)

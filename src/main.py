@@ -179,7 +179,8 @@ def main():
         audio_path, word_boundaries, sanitized_quote = audio_gen.generate_voiceover(
             quote,
             output_dir=config['paths']['temp'],
-            specific_gender="male"
+            specific_gender="male",
+            style="elderly"
         )
 
         if not audio_path:

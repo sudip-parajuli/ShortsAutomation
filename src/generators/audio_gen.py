@@ -149,6 +149,11 @@ NATURAL_VOICES = [
     "en-US-AriaNeural",        # Warm female narrator
 ]
 
+# Specifically for "Spuds"-like elderly/calm style (Grandpa Spuds Oxley charm)
+ELDERLY_VOICES = [
+    "en-US-ChristopherNeural", # Winning "WarmGrandpa" voice - DO NOT CHANGE
+]
+
 # ---------------- SANITIZATION ---------------- #
 def sanitize_for_tts(text: str) -> str:
     """Clean quote text to ensure single sentence, max words, no preambles or extra commentary."""
@@ -185,13 +190,13 @@ def sanitize_for_tts(text: str) -> str:
     return text
 
 # ---------------- ASYNC CORE ---------------- #
-async def _generate_voiceover_async(text: str, output_file: str, voice: str):
+async def _generate_voiceover_async(text: str, output_file: str, voice: str, rate="-15%", pitch="-2Hz"):
     """Generate TTS audio and capture word boundaries (with estimation fallback)."""
     communicate = edge_tts.Communicate(
         text=text, 
         voice=voice,
-        rate="-15%",
-        pitch="-2Hz"
+        rate=rate,
+        pitch=pitch
     )
     
     word_boundaries = []
@@ -240,10 +245,12 @@ async def _generate_voiceover_async(text: str, output_file: str, voice: str):
 def generate_voiceover(
     text: str,
     output_dir="assets/temp",
-    specific_gender=None
+    specific_gender=None,
+    style=None
 ):
     """
     Generates natural, mature/anecdotist-style voiceover using Edge TTS.
+    Styles: 'elderly' (Spuds-like), 'natural' (default)
     Returns: (audio_filepath, word_boundaries, sanitized_text)
     """
     try:
@@ -253,7 +260,14 @@ def generate_voiceover(
         return None, [], ""
 
     # Voice selection
-    if specific_gender == "male":
+    rate = "-15%"
+    pitch = "-2Hz"
+
+    if style == "elderly":
+        pool = ELDERLY_VOICES
+        rate = "-25%"  # Winning "WarmGrandpa" rate
+        pitch = "-12Hz" # Winning "WarmGrandpa" pitch
+    elif specific_gender == "male":
         # Christopher and Guy are best for "Deep/Mature"
         pool = [v for v in NATURAL_VOICES if "Christopher" in v or "Guy" in v]
     elif specific_gender == "female":
@@ -265,7 +279,7 @@ def generate_voiceover(
         pool = NATURAL_VOICES
         
     voice = random.choice(pool)
-    logger.info(f"Selected voice: {voice}")
+    logger.info(f"Selected voice: {voice} (style: {style})")
 
     # Output path
     os.makedirs(output_dir, exist_ok=True)
@@ -273,7 +287,7 @@ def generate_voiceover(
     filepath = os.path.join(output_dir, filename)
 
     try:
-        word_boundaries = asyncio.run(_generate_voiceover_async(sanitized_text, filepath, voice))
+        word_boundaries = asyncio.run(_generate_voiceover_async(sanitized_text, filepath, voice, rate=rate, pitch=pitch))
         logger.info(f"Voiceover saved: {filepath} with {len(word_boundaries)} words.")
         return filepath, word_boundaries, sanitized_text
     except Exception as e:
