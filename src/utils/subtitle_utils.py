@@ -33,10 +33,10 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial,80,&H00FFFFFF,&H0000FFFF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,4,2,5,80,80,10,1
+Style: Default,Arial,80,&H0000FFFF,&H00FFFFFF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,4,2,5,80,80,10,1
 """
-# Note: PrimaryColour is White, SecondaryColour is Yellow (for highlight)
-# Alignment 5 is center-middle. MarginL/R 80 for padding.
+# Swapped: Primary is now Yellow (&H0000FFFF), Secondary is White (&H00FFFFFF)
+# In \k karaoke, Secondary is base color, Primary is highlight color.
 
     if not word_boundaries:
         logger.warning("No word boundaries provided for ASS generation.")
@@ -48,10 +48,10 @@ Style: Default,Arial,80,&H00FFFFFF,&H0000FFFF,&H00000000,&H00000000,-1,0,0,0,100
     
     start_ts = format_ass_timestamp(quote_start_s)
     end_ts = format_ass_timestamp(quote_end_s)
+    
+    event_start_ms = int(quote_start_s * 1000)
 
     # Build the karaoke text with \k tags
-    # \k<duration> where duration is in centiseconds (1/100th of a second)
-    
     max_chars_per_line = 25
     lines = []
     current_line_words = []
@@ -74,29 +74,28 @@ Style: Default,Arial,80,&H00FFFFFF,&H0000FFFF,&H00000000,&H00000000,-1,0,0,0,100
 
     # Construct the final ASS Dialogue text
     ass_text_parts = []
-    prev_end_ms = int(quote_start_s * 1000)
     
-    for i, line in enumerate(lines):
+    for line in lines:
         line_parts = []
         for boundary in line:
             start_ms = int(boundary['offset'] / 10**6)
             duration_ms = int(boundary['duration'] / 10**6)
             
-            # Gap since previous word
-            gap_ms = start_ms - prev_end_ms
-            if gap_ms > 0:
-                # Add a silent karaoke wait if needed (empty space or prefix)
-                # But typically \k just works from current position
-                pass
+            # Times relative to event start for \t
+            rel_start = start_ms - event_start_ms
+            rel_mid = rel_start + (duration_ms // 2)
+            rel_end = rel_start + duration_ms
             
             # Karaoke duration in centiseconds
             k_duration = duration_ms // 10
             
             word = boundary['text']
-            # Highlight important words with a slight zoom if desired, 
-            # but for now let's keep it simple as per request: standard karaoke highlight.
-            line_parts.append(f"{{\\k{k_duration}}}{word}")
-            prev_end_ms = start_ms + duration_ms
+            
+            # Add zoom animation: 100% -> 115% -> 100%
+            # \fscx100\fscy100 is the base scale
+            zoom_tag = f"{{\\t({rel_start},{rel_mid},\\fscx115\\fscy115)\\t({rel_mid},{rel_end},\\fscx100\\fscy100)\\k{k_duration}}}"
+            
+            line_parts.append(f"{zoom_tag}{word}")
             
         ass_text_parts.append(" ".join(line_parts))
 
