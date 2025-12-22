@@ -90,127 +90,96 @@ def create_video(image_path=None, audio_path=None, quote_text="", music_dir="ass
                 )
         else:
             # Fallback to static text (drawtext) if no subtitles provided
-            pass
-
-        # Draw Text (Fallback)
-        # Robust escaping for FFmpeg drawtext
-        # FFmpeg drawtext escaping is tricky. 
-        # 1. Escape \ to \\
-        # 2. Escape ' to \' (if using single quotes for the string)
-        # 3. Escape : to \:
-        # 4. Escape % to \%
-        
-        # We will use single quotes to wrap the text in the command typically, 
-        # but ffmpeg-python handles the argument passing. 
-        # The main issue usually is the internal string interpretation of drawtext.
-        
-        # Preserve newlines but escape other special characters for FFmpeg drawtext
-        safe_text = quote_text.replace('\\', '\\\\').replace(':', '\\:').replace("'", "\u2019").replace('%', '\\%')
-        # Replaced ' with right single quote to avoid syntax errors and look better.
-        # Note: We preserve \n characters as they will be used for line breaks
-        
-        # Smart line wrapping based on character count (max ~25 chars per line for font size 90)
-        # This ensures text fits within 1080px width
-        # First check if the quote already has manual line breaks (\n)
-        if '\n' in safe_text:
-            # Use the existing line breaks from the quote
-            lines = safe_text.split('\n')
-            # Still apply character limit per line and truncate if needed
-            max_chars_per_line = 30
-            wrapped_lines = []
-            for line in lines:
-                if len(line) <= max_chars_per_line:
-                    wrapped_lines.append(line)
-                else:
-                    # Wrap long lines
-                    words = line.split()
-                    current_line = []
-                    current_length = 0
-                    for word in words:
-                        word_length = len(word)
-                        test_length = current_length + word_length + (1 if current_line else 0)
-                        if test_length <= max_chars_per_line:
-                            current_line.append(word)
-                            current_length = test_length
-                        else:
-                            if current_line:
-                                wrapped_lines.append(" ".join(current_line))
-                            current_line = [word]
-                            current_length = word_length
-                    if current_line:
-                        wrapped_lines.append(" ".join(current_line))
-            lines = wrapped_lines
-        else:
-            # Auto-wrap based on character count
-            max_chars_per_line = 25
-            words = safe_text.split()
-            lines = []
-            current_line = []
-            current_length = 0
+            # Robust escaping for FFmpeg drawtext
             
-            for word in words:
-                word_length = len(word)
-                # Account for space between words
-                test_length = current_length + word_length + (1 if current_line else 0)
-                
-                if test_length <= max_chars_per_line:
-                    current_line.append(word)
-                    current_length = test_length
-                else:
-                    # Start new line
-                    if current_line:
-                        lines.append(" ".join(current_line))
-                    current_line = [word]
-                    current_length = word_length
+            # Preserve newlines but escape other special characters for FFmpeg drawtext
+            safe_text = quote_text.replace('\\', '\\\\').replace(':', '\\:').replace("'", "\u2019").replace('%', '\\%')
             
-            # Add remaining words
-            if current_line:
-                lines.append(" ".join(current_line))
-        
-        # Limit to 5 lines max for readability (increased from 3 for longer quotes)
-        if len(lines) > 5:
-            lines = lines[:5]
-            lines[-1] += "..."  # Indicate truncation
-        
-        # Use \n for FFmpeg drawtext line breaks (NOT \\n)
-        final_text = "\n".join(lines)
-        
-        # Font Selection Strategy (Cross-Platform)
-        font_path = None
-        possible_fonts = [
-            "assets/fonts/Roboto-Bold.ttf", # Bundled font (if present)
-            "font.ttf", # Root fallback
-            "C:/Windows/Fonts/arial.ttf",   # Windows Default
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", # Linux Default (Ubuntu/Debian)
-            "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf", # Linux Alternative
-            "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf" # Linux Alternative 2
-        ]
-        
-        for f in possible_fonts:
-            if os.path.exists(f):
-                font_path = f
-                break
-                
-        if not font_path:
-             logger.warning("No suitable font found. FFmpeg might fail if it can't find default font.")
-             # On Linux, sometimes "Sans" works as a generic alias if fontconfig is set up
-             # But best to rely on explicit path.
-             # We will try a generic name and hope ffmpeg finds it in system path
-             font_path = "Sans"
+            # Smart line wrapping logic (same as before)
+            if '\n' in safe_text:
+                lines = safe_text.split('\n')
+                max_chars_per_line = 30
+                wrapped_lines = []
+                for line in lines:
+                    if len(line) <= max_chars_per_line:
+                        wrapped_lines.append(line)
+                    else:
+                        words = line.split()
+                        current_line = []
+                        current_length = 0
+                        for word in words:
+                            word_length = len(word)
+                            test_length = current_length + word_length + (1 if current_line else 0)
+                            if test_length <= max_chars_per_line:
+                                current_line.append(word)
+                                current_length = test_length
+                            else:
+                                if current_line:
+                                    wrapped_lines.append(" ".join(current_line))
+                                current_line = [word]
+                                current_length = word_length
+                        if current_line:
+                            wrapped_lines.append(" ".join(current_line))
+                lines = wrapped_lines
+            else:
+                max_chars_per_line = 25
+                words = safe_text.split()
+                lines = []
+                current_line = []
+                current_length = 0
+                for word in words:
+                    word_length = len(word)
+                    test_length = current_length + word_length + (1 if current_line else 0)
+                    if test_length <= max_chars_per_line:
+                        current_line.append(word)
+                        current_length = test_length
+                    else:
+                        if current_line:
+                            lines.append(" ".join(current_line))
+                        current_line = [word]
+                        current_length = word_length
+                if current_line:
+                    lines.append(" ".join(current_line))
+            
+            if len(lines) > 5:
+                lines = lines[:5]
+                lines[-1] += "..."
+            
+            final_text = "\n".join(lines)
+            
+            # Font Selection Strategy
+            font_path = None
+            possible_fonts = [
+                "assets/fonts/Roboto-Bold.ttf",
+                "font.ttf",
+                "C:/Windows/Fonts/arial.ttf",
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+                "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf"
+            ]
+            
+            for f in possible_fonts:
+                if os.path.exists(f):
+                    font_path = f
+                    break
+                    
+            if not font_path:
+                 logger.warning("No suitable font found.")
+                 font_path = "Sans"
 
-        video = video.drawtext(
-            text=final_text,
-            fontfile=font_path,
-            fontsize=70,  # Reduced from 90 for better multi-line readability
-            fontcolor='white',
-            shadowcolor='black',
-            shadowx=5,
-            shadowy=5,
-            x='(w-text_w)/2',
-            y='(h-text_h)/2',
-            fix_bounds=True, 
-            line_spacing=15  # Reduced from 20 for tighter line spacing
-        )
+            video = video.drawtext(
+                text=final_text,
+                fontfile=font_path,
+                fontsize=70,
+                fontcolor='white',
+                shadowcolor='black',
+                shadowx=5,
+                shadowy=5,
+                x='(w-text_w)/2',
+                y='(h-text_h)/2',
+                fix_bounds=True, 
+                line_spacing=15
+            )
 
         # 5. Audio Mixing
         if input_music:

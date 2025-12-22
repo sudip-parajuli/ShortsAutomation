@@ -16,19 +16,14 @@ def format_ass_timestamp(seconds):
 
 def generate_karaoke_ass(word_boundaries, output_file, quote_text, keywords=None):
     """
-    Generates an .ass subtitle file with a karaoke highlighting effect.
-    Supports keyword highlighting.
+    Generates an .ass subtitle file with a single-event karaoke highlighting effect.
+    The whole quote is shown at once, with words highlighted as they are spoken.
     """
     if keywords is None:
         keywords = []
     
     # Pre-process keywords: lowercase and strip punctuation
     clean_keywords = [re.sub(r'[^\w]', '', k.lower()) for k in keywords]
-    
-    # ASS Header
-    # PrimaryColor: White (&H00FFFFFF)
-    # SecondaryColor (Highlight): Yellow/Green (&H0000FFFF or &H0000FF00)
-    # ImportantColor: Bright Green (&H0000FF00)
     
     header = """[Script Info]
 ScriptType: v4.00+
@@ -38,55 +33,83 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial,90,&H00FFFFFF,&H0000FFFF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,4,2,5,10,10,10,1
-Style: Highlight,Arial,110,&H0000FFFF,&H00FFFFFF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,5,3,5,10,10,10,1
-Style: Important,Arial,120,&H0000FFFF,&H00FFFFFF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,6,4,5,10,10,10,1
-
-[Events]
-Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Style: Default,Arial,80,&H00FFFFFF,&H0000FFFF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,4,2,5,80,80,10,1
 """
+# Note: PrimaryColour is White, SecondaryColour is Yellow (for highlight)
+# Alignment 5 is center-middle. MarginL/R 80 for padding.
 
-    events = []
-    
     if not word_boundaries:
         logger.warning("No word boundaries provided for ASS generation.")
         return None
 
-    for i, boundary in enumerate(word_boundaries):
-        start_s = boundary['offset'] / 10**9
-        duration_s = boundary['duration'] / 10**9
-        end_s = start_s + duration_s
-        
-        # Extend end time slightly to bridge gaps between words
-        if i < len(word_boundaries) - 1:
-            next_start = word_boundaries[i+1]['offset'] / 10**9
-            if next_start - end_s < 0.2:
-                end_s = next_start
-        else:
-            end_s += 0.5
+    # Determine timing for the whole quote
+    quote_start_s = word_boundaries[0]['offset'] / 10**9
+    quote_end_s = (word_boundaries[-1]['offset'] + word_boundaries[-1]['duration']) / 10**9 + 0.5
+    
+    start_ts = format_ass_timestamp(quote_start_s)
+    end_ts = format_ass_timestamp(quote_end_s)
 
-        start_ts = format_ass_timestamp(start_s)
-        end_ts = format_ass_timestamp(end_s)
-        
+    # Build the karaoke text with \k tags
+    # \k<duration> where duration is in centiseconds (1/100th of a second)
+    
+    max_chars_per_line = 25
+    lines = []
+    current_line_words = []
+    current_line_length = 0
+    
+    for boundary in word_boundaries:
         word = boundary['text'].strip()
-        clean_word = re.sub(r'[^\w]', '', word.lower())
+        word_len = len(word)
         
-        style = "Highlight"
-        # Check if it's an important keyword
-        if clean_word in clean_keywords or len(clean_word) > 7:
-            style = "Important"
-        
-        # Add simple zoom animation using \t (transform)
-        # From scale 80% to 100% over the duration
-        animated_text = f"{{\\fscx80\\fscy80\\t(0,{int(duration_s*500)},\\fscx100\\fscy100)}}{word}"
-        
-        events.append(f"Dialogue: 0,{start_ts},{end_ts},{style},,0,0,0,,{animated_text}")
+        if current_line_length + word_len + (1 if current_line_words else 0) > max_chars_per_line and current_line_words:
+            lines.append(current_line_words)
+            current_line_words = []
+            current_line_length = 0
+            
+        current_line_words.append(boundary)
+        current_line_length += word_len + 1
+
+    if current_line_words:
+        lines.append(current_line_words)
+
+    # Construct the final ASS Dialogue text
+    ass_text_parts = []
+    prev_end_ms = int(quote_start_s * 1000)
+    
+    for i, line in enumerate(lines):
+        line_parts = []
+        for boundary in line:
+            start_ms = int(boundary['offset'] / 10**6)
+            duration_ms = int(boundary['duration'] / 10**6)
+            
+            # Gap since previous word
+            gap_ms = start_ms - prev_end_ms
+            if gap_ms > 0:
+                # Add a silent karaoke wait if needed (empty space or prefix)
+                # But typically \k just works from current position
+                pass
+            
+            # Karaoke duration in centiseconds
+            k_duration = duration_ms // 10
+            
+            word = boundary['text']
+            # Highlight important words with a slight zoom if desired, 
+            # but for now let's keep it simple as per request: standard karaoke highlight.
+            line_parts.append(f"{{\\k{k_duration}}}{word}")
+            prev_end_ms = start_ms + duration_ms
+            
+        ass_text_parts.append(" ".join(line_parts))
+
+    final_content = "\\N".join(ass_text_parts) # \N is hard line break in ASS
+
+    event_line = f"Dialogue: 0,{start_ts},{end_ts},Default,,0,0,0,,{final_content}"
 
     # Write to file
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(header)
-        for event in events:
-            f.write(event + "\n")
+        f.write("\n[Events]\n")
+        f.write("Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n")
+        f.write(event_line + "\n")
             
     logger.info(f"Karaoke ASS subtitles saved to {output_file}")
     return output_file
