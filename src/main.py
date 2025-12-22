@@ -193,6 +193,13 @@ def main():
         subtitle_path = None
         if word_boundaries:
             from src.utils import subtitle_utils
+            
+            # Calculate estimated video duration to keep captions until the very end
+            # Logic mirrored from composer.py
+            voice_duration = composer.get_audio_duration(audio_path)
+            base_duration = max(voice_duration + 3.0, 8.0)
+            est_video_duration = min(base_duration, 40.0)
+            
             # Use sanitized quote for keyword extraction to match word boundaries
             words_to_check = sanitized_quote.split()
             keywords = [w.strip(".,!?;:\"") for w in words_to_check if len(w.strip(".,!?;:\"")) > 6]
@@ -202,7 +209,8 @@ def main():
                 word_boundaries, 
                 ass_filename, 
                 sanitized_quote,
-                keywords=keywords
+                keywords=keywords,
+                video_duration=est_video_duration
             )
             if subtitle_path:
                 temp_files.append(subtitle_path)

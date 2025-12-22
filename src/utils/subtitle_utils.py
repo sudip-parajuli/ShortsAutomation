@@ -14,10 +14,11 @@ def format_ass_timestamp(seconds):
     centiseconds = int((secs - int(secs)) * 100)
     return f"{hours}:{minutes:02d}:{int(secs):02d}.{centiseconds:02d}"
 
-def generate_karaoke_ass(word_boundaries, output_file, quote_text, keywords=None):
+def generate_karaoke_ass(word_boundaries, output_file, quote_text, keywords=None, video_duration=None):
     """
     Generates an .ass subtitle file with a single-event karaoke highlighting effect.
     The whole quote is shown at once, with words highlighted as they are spoken.
+    If video_duration is provided, the caption stays until that time.
     """
     if keywords is None:
         keywords = []
@@ -44,7 +45,12 @@ Style: Default,Arial,80,&H0000FFFF,&H00FFFFFF,&H00000000,&H00000000,-1,0,0,0,100
 
     # Determine timing for the whole quote
     quote_start_s = word_boundaries[0]['offset'] / 10**9
-    quote_end_s = (word_boundaries[-1]['offset'] + word_boundaries[-1]['duration']) / 10**9 + 0.5
+    
+    if video_duration:
+        quote_end_s = video_duration
+    else:
+        # Fallback to just after last word
+        quote_end_s = (word_boundaries[-1]['offset'] + word_boundaries[-1]['duration']) / 10**9 + 0.5
     
     start_ts = format_ass_timestamp(quote_start_s)
     end_ts = format_ass_timestamp(quote_end_s)
@@ -110,6 +116,6 @@ Style: Default,Arial,80,&H0000FFFF,&H00FFFFFF,&H00000000,&H00000000,-1,0,0,0,100
         f.write("Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n")
         f.write(event_line + "\n")
             
-    logger.info(f"Karaoke ASS subtitles saved to {output_file}")
+    logger.info(f"Karaoke ASS subtitles saved to {output_file} (duration: {quote_end_s:.2f}s)")
     return output_file
 
