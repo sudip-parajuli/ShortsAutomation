@@ -42,10 +42,10 @@ class GeminiProvider(LLMProvider):
             
             # List of models to try in order
             models_to_try = [
-                self._config.get('model', 'gemini-2.0-flash'),
-                'gemini-2.0-flash',
+                self._config.get('model', 'gemini-1.5-flash'),
                 'gemini-1.5-flash',
-                'gemini-pro'
+                'gemini-2.0-flash',
+                'gemini-1.5-pro'
             ]
             
             # Deduplicate while preserving order
@@ -72,7 +72,7 @@ class GroqProvider(LLMProvider):
         self._config = config
         self.api_key = os.environ.get("GROQ_API_KEY")
         self.base_url = config.get("base_url", "https://api.groq.com/openai/v1")
-        self.model = config.get("model", "llama3-8b-8192")
+        self.model = config.get("model", "llama-3.1-8b-instant")
         
         if not self.api_key:
             logger.warning("GROQ_API_KEY not found in environment variables.")
@@ -113,7 +113,7 @@ class HuggingFaceProvider(LLMProvider):
     def __init__(self, config):
         self._config = config
         self.api_key = os.environ.get("HUGGINGFACE_API_KEY") or config.get("huggingface_api_key")
-        self.base_url = config.get("base_url", "https://api-inference.huggingface.co/models")
+        self.base_url = config.get("base_url", "https://router.huggingface.co/hf-inference/models")
         self.model = config.get("model", "mistralai/Mistral-7B-Instruct-v0.2")
 
         if not self.api_key:

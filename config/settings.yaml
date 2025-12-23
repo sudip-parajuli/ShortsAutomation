@@ -19,16 +19,16 @@ llm_providers:
   provider_order: ["gemini", "groq", "huggingface"]
 
   gemini:
-    model: "gemini-2.0-flash" # Will fallback to others if this specific one isn't available
+    model: "gemini-1.5-flash" # Use 1.5-flash as primary for stability
     # api_key: set via env var GEMINI_API_KEY
   
   groq:
     base_url: "https://api.groq.com/openai/v1"
-    model: "llama3-8b-8192" # Free, fast, good quality
+    model: "llama-3.1-8b-instant" 
     # api_key: set via env var GROQ_API_KEY
     
   huggingface:
-    base_url: "https://api-inference.huggingface.co/models"
+    base_url: "https://router.huggingface.co/hf-inference/models"
     model: "mistralai/Mistral-7B-Instruct-v0.2"
     # api_key: set via env var HUGGINGFACE_API_KEY
     
