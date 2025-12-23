@@ -87,3 +87,61 @@ def get_video_background(query, output_dir="assets/temp", duration_min=10, orien
     except Exception as e:
         logger.error(f"Pexels API error: {e}")
         return None
+
+def get_multiple_video_backgrounds(query, output_dir="assets/temp", count=3, orientation="landscape"):
+    """
+    Fetches multiple videos from Pexels API.
+    Orientation: 'portrait' (9:16) or 'landscape' (16:9)
+    Returns: List of paths to downloaded video files.
+    """
+    if not PEXELS_API_KEY:
+        logger.warning("PEXELS_API_KEY not found. Fallback might be needed.")
+        return []
+
+    headers = {
+        "Authorization": PEXELS_API_KEY
+    }
+    
+    # per_page slightly higher to allow filtering if needed
+    search_url = f"https://api.pexels.com/videos/search?query={query}&orientation={orientation}&per_page={count+5}&size=medium"
+
+    try:
+        response = requests.get(search_url, headers=headers)
+        response.raise_for_status()
+        data = response.json()
+        
+        videos = data.get('videos', [])
+        if not videos:
+            logger.warning(f"No videos found for query: {query}")
+            return []
+            
+        selected_videos = random.sample(videos, min(len(videos), count))
+        paths = []
+
+        for video_data in selected_videos:
+            video_files = video_data.get('video_files', [])
+            video_files.sort(key=lambda x: x['width'] * x['height'], reverse=True)
+            
+            best_file = None
+            for vf in video_files:
+                if vf['file_type'] == 'video/mp4':
+                    best_file = vf
+                    break
+            
+            if not best_file and video_files:
+                best_file = video_files[0]
+                
+            if best_file:
+                os.makedirs(output_dir, exist_ok=True)
+                filename = f"bg_video_{video_data['id']}.mp4"
+                output_path = os.path.join(output_dir, filename)
+                
+                logger.info(f"Downloading background video {video_data['id']} from Pexels...")
+                if download_video(best_file['link'], output_path):
+                    paths.append(output_path)
+        
+        return paths
+
+    except Exception as e:
+        logger.error(f"Pexels API error: {e}")
+        return []

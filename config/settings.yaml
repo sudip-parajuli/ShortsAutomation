@@ -19,7 +19,7 @@ llm_providers:
   provider_order: ["gemini", "groq", "huggingface"]
 
   gemini:
-    model: "gemini-2.5-flash" # Will fallback to others if this specific one isn't available
+    model: "gemini-2.0-flash" # Will fallback to others if this specific one isn't available
     # api_key: set via env var GEMINI_API_KEY
   
   groq:

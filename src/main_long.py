@@ -88,19 +88,20 @@ def main():
         full_text = script['full_text']
 
         # 3. Generate Background Video (Landscape 16:9)
-        background_video = None
+        background_videos = []
         try:
             video_query = f"{topic} nature landscape abstract"
-            background_video = video_gen.get_video_background(
+            background_videos = video_gen.get_multiple_video_backgrounds(
                 video_query, 
                 output_dir=config['paths']['temp'],
+                count=5,
                 orientation="landscape"
             )
         except Exception as e:
             logger.warning(f"Video background search failed: {e}")
             
-        if background_video:
-            temp_files.append(background_video)
+        if background_videos:
+            temp_files.extend(background_videos)
             image_path = None
         else:
             # Fallback to image (16:9)
@@ -133,6 +134,10 @@ def main():
 
         temp_files.append(audio_path)
         
+        # Calculate approximate duration for subtitles
+        voice_duration = long_composer.get_audio_duration(audio_path)
+        video_duration = voice_duration + 2.0
+        
         # 5. Generate Karaoke Subtitles (ASS format, 1920x1080)
         subtitle_path = None
         if word_boundaries:
@@ -141,6 +146,7 @@ def main():
                 word_boundaries, 
                 ass_filename, 
                 sanitized_text,
+                video_duration=video_duration, # Trigger segmentation if > 60
                 width=1920,
                 height=1080
             )
@@ -157,8 +163,8 @@ def main():
             music_dir=config['paths']['music'],
             output_file=output_file,
             subtitle_path=subtitle_path,
-            background_video_path=background_video,
-            image_path=image_path if not background_video else None
+            background_video_paths=background_videos,
+            image_path=image_path if not background_videos else None
         )
         
         if not final_video_path:

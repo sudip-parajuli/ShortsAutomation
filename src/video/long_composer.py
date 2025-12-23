@@ -15,9 +15,10 @@ def get_audio_duration(file_path):
         probe = ffmpeg.probe(file_path)
         return float(probe['format']['duration'])
 
-def create_long_video(audio_path, quote_text, explanation_text, music_dir="assets/music", output_file="assets/output/long_video.mp4", subtitle_path=None, background_video_path=None, image_path=None):
+def create_long_video(audio_path, quote_text, explanation_text, music_dir="assets/music", output_file="assets/output/long_video.mp4", subtitle_path=None, background_video_paths=None, image_path=None):
     """
     Composes a 16:9 long-form video using FFmpeg.
+    background_video_paths can be a string (single path) or a list of paths.
     """
     try:
         # Ensure output directory exists
@@ -35,9 +36,7 @@ def create_long_video(audio_path, quote_text, explanation_text, music_dir="asset
         music_files = [f for f in os.listdir(music_dir) if f.endswith('.mp3') or f.endswith('.ogg')] if os.path.isdir(music_dir) else []
         if music_files:
             music_path = os.path.join(music_dir, random.choice(music_files))
-            # Ducking: voice is primary, music is lowered
             input_music = ffmpeg.input(music_path).filter('volume', 0.15) 
-            # Loop music infinitely
             input_music = ffmpeg.filter(input_music, 'aloop', loop=-1, size=2e+09)
             bg_music = input_music.filter('atrim', duration=video_duration)
             final_audio = ffmpeg.filter([input_voice, bg_music], 'amix', inputs=2, duration='first')
@@ -45,19 +44,38 @@ def create_long_video(audio_path, quote_text, explanation_text, music_dir="asset
             final_audio = input_voice
 
         # 4. Background Visual
-        if background_video_path and os.path.exists(background_video_path):
-             logger.info(f"Using video background for long-form: {background_video_path}")
-             # Loop background video to cover entire duration
-             input_visual = ffmpeg.input(background_video_path, stream_loop=-1)
-             
-             video = (
-                 input_visual
-                 # Scale to 16:9 (1920x1080)
-                 .filter('scale', 1920, 1080, force_original_aspect_ratio='increase')
-                 .filter('crop', 1920, 1080)
-                 .filter('trim', duration=video_duration)
-                 .filter('vignette', angle='0.5')
-             )
+        if background_video_paths:
+            if isinstance(background_video_paths, str):
+                background_video_paths = [background_video_paths]
+            
+            # Filter out non-existent files
+            background_video_paths = [p for p in background_video_paths if os.path.exists(p)]
+            
+            if not background_video_paths:
+                 logger.error("No valid background videos found.")
+                 return None
+
+            logger.info(f"Using {len(background_video_paths)} video background(s) for long-form.")
+            
+            processed_clips = []
+            for path in background_video_paths:
+                clip = (
+                    ffmpeg.input(path)
+                    .filter('scale', 1920, 1080, force_original_aspect_ratio='increase')
+                    .filter('crop', 1920, 1080)
+                )
+                processed_clips.append(clip)
+            
+            # If we have multiple clips, we cycle them or just concat
+            # To cycle until duration is met, we might need a more complex filter or just loop the concat
+            if len(processed_clips) > 1:
+                # Simple concatenation
+                video = ffmpeg.concat(*processed_clips, v=1, a=0).filter('loop', loop=-1, size=2e+09)
+            else:
+                video = processed_clips[0].filter('loop', loop=-1, size=2e+09)
+            
+            video = video.filter('trim', duration=video_duration).filter('vignette', angle='0.5')
+            
         elif image_path and os.path.exists(image_path):
             input_visual = ffmpeg.input(image_path, loop=1, t=video_duration)
             video = (

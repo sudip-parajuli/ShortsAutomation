@@ -94,7 +94,7 @@ class GroqProvider(LLMProvider):
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.7,
-            "max_tokens": 100
+            "max_tokens": 2048
         }
 
         try:
@@ -137,7 +137,7 @@ class HuggingFaceProvider(LLMProvider):
         payload = {
             "inputs": formatted_prompt,
             "parameters": {
-                "max_new_tokens": 100,
+                "max_new_tokens": 2048,
                 "return_full_text": False,
                 "temperature": 0.7
             }
