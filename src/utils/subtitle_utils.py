@@ -14,7 +14,7 @@ def format_ass_timestamp(seconds):
     centiseconds = int((secs - int(secs)) * 100)
     return f"{hours}:{minutes:02d}:{int(secs):02d}.{centiseconds:02d}"
 
-def generate_karaoke_ass(word_boundaries, output_file, quote_text, keywords=None, video_duration=None):
+def generate_karaoke_ass(word_boundaries, output_file, quote_text, keywords=None, video_duration=None, width=1080, height=1920):
     """
     Generates an .ass subtitle file with a single-event karaoke highlighting effect.
     The whole quote is shown at once, with words highlighted as they are spoken.
@@ -26,15 +26,15 @@ def generate_karaoke_ass(word_boundaries, output_file, quote_text, keywords=None
     # Pre-process keywords: lowercase and strip punctuation
     clean_keywords = [re.sub(r'[^\w]', '', k.lower()) for k in keywords]
     
-    header = """[Script Info]
+    header = f"""[Script Info]
 ScriptType: v4.00+
-PlayResX: 1080
-PlayResY: 1920
+PlayResX: {width}
+PlayResY: {height}
 ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial,80,&H0000FFFF,&H00FFFFFF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,4,2,5,80,80,10,1
+Style: Default,Arial,80,&H0000FFFF,&H00FFFFFF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,4,2,5,{width//2},{width//2},10,1
 """
 # Swapped: Primary is now Yellow (&H0000FFFF), Secondary is White (&H00FFFFFF)
 # In \k karaoke, Secondary is base color, Primary is highlight color.

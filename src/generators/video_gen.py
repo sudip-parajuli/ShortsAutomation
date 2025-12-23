@@ -20,9 +20,10 @@ def download_video(url, output_path):
         logger.error(f"Failed to download video: {e}")
         return False
 
-def get_video_background(query, output_dir="assets/temp", duration_min=10):
+def get_video_background(query, output_dir="assets/temp", duration_min=10, orientation="portrait"):
     """
-    Fetches a vertical (9:16) video from Pexels API matching the query.
+    Fetches a video from Pexels API matching the query.
+    Orientation: 'portrait' (9:16) or 'landscape' (16:9)
     Returns: Path to downloaded video file.
     """
     if not PEXELS_API_KEY:
@@ -34,8 +35,8 @@ def get_video_background(query, output_dir="assets/temp", duration_min=10):
     }
     
     # Search for vertical videos
-    # orientation=portrait ensures 9:16 usually
-    search_url = f"https://api.pexels.com/videos/search?query={query}&orientation=portrait&per_page=5&size=medium"
+    # orientation=portrait ensures 9:16 usually, landscape ensures 16:9
+    search_url = f"https://api.pexels.com/videos/search?query={query}&orientation={orientation}&per_page=5&size=medium"
 
     try:
         response = requests.get(search_url, headers=headers)

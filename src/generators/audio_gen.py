@@ -155,15 +155,20 @@ ELDERLY_VOICES = [
 ]
 
 # ---------------- SANITIZATION ---------------- #
-def sanitize_for_tts(text: str) -> str:
-    """Clean quote text to ensure single sentence, max words, no preambles or extra commentary."""
+def sanitize_for_tts(text: str, long_form: bool = False) -> str:
+    """Clean quote text to ensure quality audio. For shorts, max words/1 sentence. For long-form, just basic cleaning."""
     if not text:
         raise ValueError("Empty text passed to TTS")
 
     text = text.strip()
     text = re.sub(r"\s+", " ", text)
+    
+    if long_form:
+        # For long form, just remove common "talking to LLM" noise if any
+        # But generally we want the whole explanation
+        return text
 
-    # Block common non-quote content
+    # Block common non-quote content (for shorts)
     forbidden = [
         "here is",
         "here's",
@@ -246,7 +251,8 @@ def generate_voiceover(
     text: str,
     output_dir="assets/temp",
     specific_gender=None,
-    style=None
+    style=None,
+    long_form=False
 ):
     """
     Generates natural, mature/anecdotist-style voiceover using Edge TTS.
@@ -254,7 +260,7 @@ def generate_voiceover(
     Returns: (audio_filepath, word_boundaries, sanitized_text)
     """
     try:
-        sanitized_text = sanitize_for_tts(text)
+        sanitized_text = sanitize_for_tts(text, long_form=long_form)
     except ValueError as e:
         logger.error(f"TTS sanitization failed: {e}")
         return None, [], ""
