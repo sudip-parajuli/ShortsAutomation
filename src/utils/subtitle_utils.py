@@ -43,6 +43,10 @@ Style: Default,Arial,80,&H0000FFFF,&H00FFFFFF,&H00000000,&H00000000,-1,0,0,0,100
         logger.warning("No word boundaries provided for ASS generation.")
         return None
 
+    # Determine timing for the whole quote (used for logging and fallback)
+    quote_start_s = word_boundaries[0]['offset'] / 10**9
+    quote_end_s = video_duration if video_duration else (word_boundaries[-1]['offset'] + word_boundaries[-1]['duration']) / 10**9 + 1.0
+
     # segmentation logic
     # For shorts, we show everything. For long-term, we show chunks.
     is_long_form = video_duration and video_duration > 60
@@ -116,9 +120,6 @@ Style: Default,Arial,80,&H0000FFFF,&H00FFFFFF,&H00000000,&H00000000,-1,0,0,0,100
             
     else:
         # Shorts Logic (Original) - Show everything at once
-        quote_start_s = word_boundaries[0]['offset'] / 10**9
-        quote_end_s = video_duration if video_duration else (word_boundaries[-1]['offset'] + word_boundaries[-1]['duration']) / 10**9 + 1.0
-        
         start_ts = format_ass_timestamp(quote_start_s)
         end_ts = format_ass_timestamp(quote_end_s)
         event_start_ms = int(quote_start_s * 1000)
