@@ -39,6 +39,10 @@ def get_authenticated_creds():
                 creds.refresh(Request())
             except Exception as e:
                 logger.error(f"Error refreshing token: {e}")
+                if "invalid_grant" in str(e).lower():
+                    logger.error("CRITICAL: Token has been revoked or is invalid.")
+                    logger.error("If running in GitHub Actions, you MUST refresh your token.pickle locally.")
+                    logger.error("Run 'python src/utils/reauthenticate.py' on your local machine, then update your GitHub Secret.")
                 creds = None
 
         # 3. If still no valid creds, perform login flow
@@ -47,12 +51,20 @@ def get_authenticated_creds():
                 logger.error(f"CRITICAL: {secret_path} not found. Cannot authenticate.")
                 return None
             
+            # Use Environment Variable to avoid initiating interactive flow in CI
+            if os.environ.get("GITHUB_ACTIONS"):
+                logger.error("CRITICAL: Authentication failed in CI environment. Interactive login not possible.")
+                logger.error("Please update TOKEN_PICKLE_B64 with a fresh, locally-generated token.")
+                return None
+
             logger.info("Initiating new login flow...")
             try:
                 flow = InstalledAppFlow.from_client_secrets_file(secret_path, SCOPES)
                 creds = flow.run_local_server(port=0)
             except Exception as e:
                 logger.error(f"Authentication flow failed: {e}")
+                if "could not locate runnable browser" in str(e).lower():
+                     logger.error("TIP: If you are on a server without a browser, run this script locally and copy the token.pickle file.")
                 return None
 
         # 4. Save the valid credentials
