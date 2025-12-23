@@ -36,8 +36,8 @@ def create_long_video(audio_path, quote_text, explanation_text, music_dir="asset
         music_files = [f for f in os.listdir(music_dir) if f.endswith('.mp3') or f.endswith('.ogg')] if os.path.isdir(music_dir) else []
         if music_files:
             music_path = os.path.join(music_dir, random.choice(music_files))
-            input_music = ffmpeg.input(music_path).filter('volume', 0.15) 
-            input_music = ffmpeg.filter(input_music, 'aloop', loop=-1, size=2e+09)
+            # Use stream_loop on input for infinite looping without buffer size issues
+            input_music = ffmpeg.input(music_path, stream_loop=-1).filter('volume', 0.15) 
             bg_music = input_music.filter('atrim', duration=video_duration)
             final_audio = ffmpeg.filter([input_voice, bg_music], 'amix', inputs=2, duration='first')
         else:
@@ -69,10 +69,12 @@ def create_long_video(audio_path, quote_text, explanation_text, music_dir="asset
             # If we have multiple clips, we cycle them or just concat
             # To cycle until duration is met, we might need a more complex filter or just loop the concat
             if len(processed_clips) > 1:
-                # Simple concatenation
-                video = ffmpeg.concat(*processed_clips, v=1, a=0).filter('loop', loop=-1, size=2e+09)
+                # Simple concatenation. For the loop filter, we use a safer size limit (32767) 
+                # supported by older FFmpeg builds. For video frames, this is plenty.
+                video = ffmpeg.concat(*processed_clips, v=1, a=0).filter('loop', loop=-1, size=32767)
             else:
-                video = processed_clips[0].filter('loop', loop=-1, size=2e+09)
+                # For single video, we can just use loop filter with safe size
+                video = processed_clips[0].filter('loop', loop=-1, size=32767)
             
             video = video.filter('trim', duration=video_duration).filter('vignette', angle='0.5')
             
