@@ -59,25 +59,41 @@ Rules:
             attempt += 1
             continue
             
-        # Parse the response
+        # Parse the response using regex for better flexibility
         try:
-            quote_part = ""
-            explanation_part = ""
+            import re
             
-            if "[QUOTE]" in raw_text and "[EXPLANATION]" in raw_text:
-                parts = raw_text.split("[EXPLANATION]")
-                quote_part = parts[0].replace("[QUOTE]", "").strip()
-                explanation_part = parts[1].strip()
+            # Look for [QUOTE] followed by text until [EXPLANATION]
+            quote_match = re.search(r"\[QUOTE\](.*?)(?=\[EXPLANATION\]|$)", raw_text, re.DOTALL | re.IGNORECASE)
+            # Look for [EXPLANATION] followed by rest of text
+            expl_match = re.search(r"\[EXPLANATION\](.*)", raw_text, re.DOTALL | re.IGNORECASE)
             
-            if quote_part and explanation_part:
+            quote_part = quote_match.group(1).strip() if quote_match else ""
+            explanation_part = expl_match.group(1).strip() if expl_match else ""
+            
+            # Fallback if tags are missing but format is somewhat maintained
+            if not quote_part or not explanation_part:
+                # If it didn't find tags, try splitting by the first big double newline
+                lines = raw_text.strip().split("\n\n")
+                if len(lines) >= 2:
+                    quote_part = lines[0].strip()
+                    explanation_part = "\n\n".join(lines[1:]).strip()
+            
+            # Final validation
+            if quote_part and explanation_part and len(explanation_part) > 100:
                 logger.info(f"Long-form script generated using {provider_used}")
+                
+                # Cleanup: remove any literal [QUOTE] or [EXPLANATION] left over
+                # and remove surrounding quotes if LLM ignored the instruction
+                quote_part = re.sub(r'^["\']|["\']$', '', quote_part).strip()
+                
                 return {
                     "quote": quote_part,
                     "explanation": explanation_part,
                     "full_text": f"{quote_part}\n\n{explanation_part}"
                 }
             else:
-                logger.warning(f"Failed to parse LLM response correctly. Attempt {attempt+1}")
+                logger.warning(f"Failed to parse LLM response correctly or content too short. Attempt {attempt+1}")
                 attempt += 1
         except Exception as e:
             logger.error(f"Error parsing long-form script: {e}")

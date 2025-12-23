@@ -43,8 +43,10 @@ class GeminiProvider(LLMProvider):
             # List of models to try in order
             models_to_try = [
                 self._config.get('model', 'gemini-1.5-flash'),
+                'gemini-1.5-flash-latest',
                 'gemini-1.5-flash',
                 'gemini-2.0-flash',
+                'gemini-1.5-pro-latest',
                 'gemini-1.5-pro'
             ]
             
@@ -98,7 +100,7 @@ class GroqProvider(LLMProvider):
         }
 
         try:
-            resp = requests.post(f"{self.base_url}/chat/completions", json=payload, headers=headers, timeout=10)
+            resp = requests.post(f"{self.base_url}/chat/completions", json=payload, headers=headers, timeout=20)
             if resp.status_code != 200:
                 logger.warning(f"Groq API error {resp.status_code}: {resp.text}")
                 return None
