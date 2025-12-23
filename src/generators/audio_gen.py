@@ -203,9 +203,7 @@ async def _generate_voiceover_async(text: str, output_file: str, voice: str, rat
         rate=rate,
         pitch=pitch
     )
-    
     word_boundaries = []
-    sentence_boundary = None
     
     with open(output_file, "wb") as f:
         async for chunk in communicate.stream():
@@ -218,33 +216,45 @@ async def _generate_voiceover_async(text: str, output_file: str, voice: str, rat
                     "duration": chunk["duration"] * 100
                 })
             elif chunk["type"] == "SentenceBoundary":
-                sentence_boundary = chunk
+                # Collect all sentence boundaries for better estimation
+                word_boundaries.append({
+                    "type": "SENTENCE",
+                    "text": chunk["text"],
+                    "offset": chunk["offset"] * 100,
+                    "duration": chunk["duration"] * 100
+                })
 
-    # Fallback: Estimate word boundaries from sentence boundary if real ones missing
-    if not word_boundaries and sentence_boundary:
-        logger.info("Real WordBoundaries missing. Estimating from SentenceBoundary...")
-        words = text.split()
-        if words:
-            total_duration_ns = sentence_boundary["duration"] * 100
-            start_offset_ns = sentence_boundary["offset"] * 100
+    # Fallback/Alignment: If we have SENTENCE markers but no REAL words, or to align them
+    real_words = [wb for wb in word_boundaries if wb.get("type") != "SENTENCE"]
+    sentence_markers = [wb for wb in word_boundaries if wb.get("type") == "SENTENCE"]
+    
+    if not real_words and sentence_markers:
+        logger.info(f"Estimating boundaries from {len(sentence_markers)} sentence(s).")
+        estimated_words = []
+        for marker in sentence_markers:
+            s_text = marker["text"]
+            s_offset = marker["offset"]
+            s_duration = marker["duration"]
             
-            # Simple heuristic: duration proportional to word length
+            words = s_text.split()
+            if not words: continue
+            
             total_chars = sum(len(w) for w in words)
-            current_offset = start_offset_ns
+            current_offset = s_offset
             
             for word in words:
-                # Add extra weight to words because of spaces (not perfect but better)
-                word_weight = len(word) 
-                word_duration = (word_weight / total_chars) * total_duration_ns
-                
-                word_boundaries.append({
+                word_weight = len(word)
+                word_duration = (word_weight / total_chars) * s_duration
+                estimated_words.append({
                     "text": word,
                     "offset": int(current_offset),
                     "duration": int(word_duration)
                 })
                 current_offset += word_duration
-
-    return word_boundaries
+        return estimated_words
+    
+    # Filter out sentence markers if we have real words
+    return real_words
 
 # ---------------- PUBLIC API ---------------- #
 def generate_voiceover(

@@ -83,9 +83,13 @@ Rules:
             if quote_part and explanation_part and len(explanation_part) > 100:
                 logger.info(f"Long-form script generated using {provider_used}")
                 
-                # Cleanup: remove any literal [QUOTE] or [EXPLANATION] left over
+                # Cleanup: remove any literal [QUOTE], Quote:, etc. left over
                 # and remove surrounding quotes if LLM ignored the instruction
                 quote_part = re.sub(r'^["\']|["\']$', '', quote_part).strip()
+                quote_part = re.sub(r'^\s*(\[|\*\*|)?(quote|topic)(\]|\*\*|):?', '', quote_part, flags=re.IGNORECASE).strip()
+                
+                # Cleanup explanation: remove "Explanation:" header if LLM repeated it
+                explanation_part = re.sub(r'^\s*(\[|\*\*|)?(explanation|detailed explanation)(\]|\*\*|):?', '', explanation_part, flags=re.IGNORECASE).strip()
                 
                 return {
                     "quote": quote_part,
