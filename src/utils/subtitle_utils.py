@@ -111,7 +111,7 @@ Style: Default,Arial,80,&H0000FFFF,&H00FFFFFF,&H00000000,&H00000000,-1,0,0,0,100
                     rel_mid = rel_start + (dur_ms // 2)
                     rel_end = rel_start + dur_ms
                     k_dur = dur_ms // 10
-                    zoom_tag = f"{{\\t({rel_start},{rel_mid},\\fscx115\\fscy115)\\t({rel_mid},{rel_end},\\fscx100\\fscy100)\\k{k_dur}}}"
+                    zoom_tag = f"{{\\k{k_dur}}}"
                     line_parts.append(f"{zoom_tag}{b['text']}")
                 ass_text_parts.append(" ".join(line_parts))
             
@@ -151,7 +151,7 @@ Style: Default,Arial,80,&H0000FFFF,&H00FFFFFF,&H00000000,&H00000000,-1,0,0,0,100
                 rel_mid = rel_start + (dur_ms // 2)
                 rel_end = rel_start + dur_ms
                 k_dur = dur_ms // 10
-                zoom_tag = f"{{\\t({rel_start},{rel_mid},\\fscx115\\fscy115)\\t({rel_mid},{rel_end},\\fscx100\\fscy100)\\k{k_dur}}}"
+                zoom_tag = f"{{\\k{k_dur}}}"
                 line_parts.append(f"{zoom_tag}{boundary['text']}")
             ass_text_parts.append(" ".join(line_parts))
             
